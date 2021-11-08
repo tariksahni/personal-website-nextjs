@@ -16,12 +16,12 @@ const HomePage = () => {
               <div className="image-frame yellow-color-background" />
               <div className="content-container">
                   <div className="image-container">
-                      <Image src={MyImage} layout='fill' alt="This is my personal image" title="tarik-sahni" aria-hidden="true"
+                      <Image src={MyImage} priority layout='fill' placeholder={'blur'} alt="This is my personal image" title="tarik-sahni" aria-hidden="true"
                              role="presentation"/>
                   </div>
                   <div className="home-page-details">
                       <div className="image-container-mobile">
-                          <Image src={MyImage} alt="This is my personal image" title="tarik-sahni" aria-hidden="true"
+                          <Image src={MyImage} priority alt="This is my personal image" title="tarik-sahni" aria-hidden="true"
                                  role="presentation"/>
                       </div>
                       <div className="intro-section">
