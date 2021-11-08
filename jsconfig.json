@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "es5",
+    "sourceMap": true,
+    "jsx": "preserve",
+    "allowJs": true,
+    "watch": true,
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "baseUrl": "./",
+    "paths": {
+      "Assets/*": ["src/assets/*"],
+      "Hooks/*": ["src/hooks/*"],
+      "Static/*": ["public/*"],
+      "Server/*": ["src/server/*"],
+      "Store/*": ["src/store/*"],
+      "Client/*": ["src/client/*"],
+      "Components/*": ["src/components/*"],
+      "Containers/*": ["src/containers/*"],
+      "Constants/*": ["src/constants/*"],
+      "Contexts/*": ["src/contexts/*"],
+      "Utils/*": ["src/utils/*"],
+      "HOC/*": ["src/hoc/*"],
+      "Less/*": ["src/less/*"],
+      "Thunks/*": ["src/thunks/*"],
+      "Actions/*": ["src/actions/*"],
+      "Reducers/*": ["src/reducers/*"],
+      "ReduxTypes/*": ["src/reduxTypes/*"]
+    },
+    "skipLibCheck": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+  "exclude": ["node_modules"]
+}
