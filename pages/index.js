@@ -37,10 +37,10 @@ const HomePage = () => {
                               Agile.</p>
                           <div className="about-me-container yellow-color-background">
                               <a href={MyResume} download={'Tarik_Sahni_FE_Resume'} className="download-pdf-anchor"><span
-                                  className="white-color upper-case fs-2  fw-bold open-sans-font">Download Resume &nbsp; 💻</span></a>
+                                  className="black-color upper-case fs-2  fw-bold open-sans-font">Download Resume &nbsp; 💻</span></a>
                           </div>
                           <div className="about-me-container mt-2 yellow-color-background cursor-pointer">
-                              <span className="white-color upper-case fs-2  fw-bold open-sans-font">{`Let's connect on blockchain Ξ`}</span>
+                              <span className="black-color upper-case fs-2  fw-bold open-sans-font">{`Let's connect on blockchain Ξ`}</span>
                           </div>
                       </div>
                   </div>
