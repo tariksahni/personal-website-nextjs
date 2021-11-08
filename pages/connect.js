@@ -82,7 +82,7 @@ const ConnectMe = () => {
 				await messageTxn.wait();
 				setIsMinting(false);
 				const messageCount = await messageWallContract.getTotalMessageCount();
-				setMessageCount(messageCount);
+				if(messageCount) setMessageCount(messageCount.toNumber());
 			} else {
 				setCurrentState({
 					isWalletConnected: false,
