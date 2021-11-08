@@ -1,6 +1,7 @@
 /* Node Dependencies */
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 /* Components */
 import SocialMedia from 'Components/socialMedia';
@@ -39,9 +40,11 @@ const HomePage = () => {
                               <a href={MyResume} download={'Tarik_Sahni_FE_Resume'} className="download-pdf-anchor"><span
                                   className="black-color upper-case fs-2  fw-bold open-sans-font">Download Resume &nbsp; 💻</span></a>
                           </div>
-                          <div className="about-me-container mt-2 yellow-color-background cursor-pointer">
-                              <span className="black-color upper-case fs-2  fw-bold open-sans-font">{`Let's connect on blockchain Ξ`}</span>
-                          </div>
+                          <Link href={'/connect'}>
+                              <div className="about-me-container mt-2 yellow-color-background cursor-pointer">
+                                  <span className="black-color upper-case fs-2  fw-bold open-sans-font">{`Let's connect on blockchain Ξ`}</span>
+                              </div>
+                          </Link>
                       </div>
                   </div>
               </div>

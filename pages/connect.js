@@ -17,6 +17,7 @@ const ConnectMe = () => {
 		isWalletConnected: false,
 		isWalletInstalled: false
 	});
+	const [totalMessageCount, setMessageCount] = useState(0);
 	const [isMinting, setIsMinting] = useState(false);
 	const checkIfWalletIsConnected = async () => {
 		try {
@@ -32,7 +33,11 @@ const ConnectMe = () => {
 					isWalletConnected: true,
 					isWalletInstalled: true
 				});
-
+				const provider = new ethers.providers.Web3Provider(ethereum);
+				const signer = provider.getSigner();
+				const messageWallContract = new ethers.Contract(MESSAGE_WALL_CONTRACT_ADDRESS, messageWallContractABI.abi, signer);
+				const messageCount = await messageWallContract.getTotalMessageCount();
+				if(messageCount) setMessageCount(messageCount.toNumber());
 			} else {
 				setCurrentState({
 					isWalletConnected: false,
@@ -72,13 +77,12 @@ const ConnectMe = () => {
 				const provider = new ethers.providers.Web3Provider(ethereum);
 				const signer = provider.getSigner();
 				const messageWallContract = new ethers.Contract(MESSAGE_WALL_CONTRACT_ADDRESS, messageWallContractABI.abi, signer);
-				let messageCount;
-				messageCount = await messageWallContract.getTotalMessageCount();
 				let messageTxn = await messageWallContract.incrementMessageCount();
 				setIsMinting(true);
 				await messageTxn.wait();
 				setIsMinting(false);
-				messageCount = await messageWallContract.getTotalMessageCount();
+				const messageCount = await messageWallContract.getTotalMessageCount();
+				setMessageCount(messageCount);
 			} else {
 				setCurrentState({
 					isWalletConnected: false,
@@ -93,6 +97,7 @@ const ConnectMe = () => {
 	useEffect(() => {
 		checkIfWalletIsConnected().then();
 	}, []);
+
 	const {isWalletConnected, isWalletInstalled} = currentState;
 	return (
 		<div className={'connect-me-container'}>
@@ -140,6 +145,11 @@ const ConnectMe = () => {
 				</Conditional>
 			</div>
 			<SocialMedia/>
+			<div className="yellow-color poppins-font fw-bold fs-2 position-left-bottom-fixed">
+				<span className="my-details white-color">{`Total `}</span>
+				Waves:&nbsp;
+				<span className="my-details white-color">{totalMessageCount}</span>
+			</div>
 		</div>
 
 	)

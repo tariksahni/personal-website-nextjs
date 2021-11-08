@@ -784,3 +784,9 @@ body{
     margin-top: 0;
   }
 }
+
+.position-left-bottom-fixed{
+  position: fixed;
+  bottom: 2.4em;
+  left: 1.6em;
+}
