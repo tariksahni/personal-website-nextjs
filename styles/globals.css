@@ -518,6 +518,7 @@ body{
     box-shadow: 0 0 7px rgba(0,0,0,.9);
     background-color: #111;
     border-radius: 1.5em;
+    position: relative;
   }
   .image-container img{
     border-radius: 1.5em;
@@ -604,7 +605,7 @@ body{
 
   .description-text{
     line-height: 2em;
-    margin: 1em 0;
+    margin: 16px 0 24px 0;
   }
   .about-me-container{
     height: 4em;
@@ -614,6 +615,9 @@ body{
     align-items: center;
     padding: 0 2em;
     width: max-content;
+  }
+  .mt-2{
+    margin-top: 1.6em;
   }
 }
 
@@ -715,5 +719,47 @@ body{
 @media (max-width: 991px) {
   .header-desktop {
     display: none;
+  }
+}
+
+.download-pdf-anchor{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.cursor-pointer{
+  cursor: pointer;
+}
+
+.shine {
+  font-size: 48px;
+  font-weight: bold;
+}
+
+.shine {
+  background: #222 -webkit-gradient(linear, left top, right top, from(#222), to(#222), color-stop(0.5, #fff)) 0 0 no-repeat;
+  -webkit-background-size: 150px;
+  color: #ffb400;
+  -webkit-background-clip: text;
+  -webkit-animation-name: shine;
+  -webkit-animation-duration: 2s;
+  -webkit-animation-iteration-count: infinite;
+  text-shadow: 0 0px 0px rgba(255, 255, 255, 0.5);
+}
+
+@-webkit-keyframes shine {
+  0%, 10% {
+    background-position: -1000px;
+  }
+  20% {
+    background-position: top left;
+  }
+  90% {
+    background-position: top right;
+  }
+  100% {
+    background-position: 1000px;
   }
 }

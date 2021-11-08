@@ -1,3 +1,4 @@
+/* Node Dependencies */
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {
@@ -15,6 +16,7 @@ class MyDocument extends Document {
 					<link rel="mask-icon" href="/favicon/safari-pinned-tab.svg" color="#5bbad5" />
 					<meta name="msapplication-TileColor" content="#da532c" />
 					<meta name="theme-color" content="#ffffff" />
+					<script src="https://use.fontawesome.com/bfe604ab66.js"></script>
 				</Head>
 				<body>
 				<Main />

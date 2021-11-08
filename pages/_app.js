@@ -1,5 +1,8 @@
+/* Node Dependencies */
 import React from 'react';
 import Head from 'next/head';
+
+/* Styles */
 import '../styles/globals.css';
 
 function MyApp({ Component, pageProps }) {
@@ -13,4 +16,4 @@ function MyApp({ Component, pageProps }) {
   )
 }
 
-export default MyApp
+export default MyApp;
