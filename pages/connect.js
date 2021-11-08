@@ -17,6 +17,7 @@ const ConnectMe = () => {
 		isWalletConnected: false,
 		isWalletInstalled: false
 	});
+	const [isMinting, setIsMinting] = useState(false);
 	const checkIfWalletIsConnected = async () => {
 		try {
 			const {ethereum} = window;
@@ -74,8 +75,9 @@ const ConnectMe = () => {
 				let messageCount;
 				messageCount = await messageWallContract.getTotalMessageCount();
 				let messageTxn = await messageWallContract.incrementMessageCount();
+				setIsMinting(true);
 				await messageTxn.wait();
-
+				setIsMinting(false);
 				messageCount = await messageWallContract.getTotalMessageCount();
 			} else {
 				setCurrentState({
@@ -95,7 +97,7 @@ const ConnectMe = () => {
 	return (
 		<div className={'connect-me-container'}>
 			<div className="intro-connect">
-				<h6 className="open-sans-font upper-case hi-text fs-3 fw-normal">Hi there ! &#128075;</h6>
+				<h6 className="open-sans-font  hi-text fs-3 fw-normal">Hi, Tarik here ! &#128075;</h6>
 				<h1 className="yellow-color poppins-font upper-case fw-bold fs-5">
 					<span className="my-details white-color">{`Let's talk on `}</span>
 					Blockchain
@@ -116,11 +118,24 @@ const ConnectMe = () => {
 						</span>
 					</div>
 				</Conditional>
-				<Conditional if={isWalletConnected}>
+				<Conditional if={isWalletConnected && !isMinting}>
 					<div onClick={waveMe} className="download-pdf-anchor" >
 						<span
 							className="black-color upper-case fs-2  fw-bold open-sans-font">Wave at me! &nbsp; 🙋‍♂️
 						</span>
+					</div>
+				</Conditional>
+				<Conditional if={isMinting && isWalletConnected}>
+					<div className="download-pdf-anchor" >
+						<span
+							className="black-color upper-case fs-2  fw-bold open-sans-font">Minting in progress &nbsp;
+						</span>
+						<div className="ball-element ball1"/>
+						&nbsp;&nbsp;
+						<div className="ball-element ball2"/>
+						&nbsp;&nbsp;
+						<div className="ball-element ball3"/>
+
 					</div>
 				</Conditional>
 			</div>

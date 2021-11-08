@@ -750,3 +750,37 @@ body{
   align-items: center;
   justify-content: center;
 }
+
+.ball-element{
+  width: 10px;
+  height: 10px;
+  background-color: #000000;
+  border-radius: 50%;
+}
+
+.ball1{
+  animation: ballAnimation 2s infinite ease ;
+}
+
+.ball2{
+  animation: ballAnimation 2s infinite ease .1s;
+}
+
+.ball3{
+  animation: ballAnimation 2s infinite ease .2s;
+}
+
+@keyframes ballAnimation{
+  0%{
+    margin-top: 0;
+  }
+  10%{
+    margin-top: -10px;
+  }
+  20%{
+    margin-top: 0;
+  }
+  100%{
+    margin-top: 0;
+  }
+}
