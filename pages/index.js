@@ -26,7 +26,7 @@ const HomePage = () => {
                                  role="presentation"/>
                       </div>
                       <div className="intro-section">
-                          <h6 className="open-sans-font upper-case hi-text fs-3 fw-normal">Hi there ! &#128075;</h6>
+                          <h6 className="open-sans-font upper-case hi-text fs-3 fw-normal">Hi there ! &#128075; 🇮🇳</h6>
                           <h1 className="yellow-color poppins-font upper-case fw-bold fs-5">
                               <span className="my-details white-color">{`I'm `}</span>
                               Tarik Sahni

@@ -102,7 +102,7 @@ const ConnectMe = () => {
 	return (
 		<div className={'connect-me-container'}>
 			<div className="intro-connect">
-				<h6 className="open-sans-font  hi-text fs-3 fw-normal">Hi, Tarik here ! &#128075;</h6>
+				<h6 className="open-sans-font  hi-text fs-3 fw-normal">Hi, Tarik here ! &#128075; 🇮🇳</h6>
 				<h1 className="yellow-color poppins-font upper-case fw-bold fs-5">
 					<span className="my-details white-color">{`Let's talk on `}</span>
 					Blockchain
