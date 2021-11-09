@@ -4,6 +4,7 @@ import { ethers } from "ethers";
 
 /* Components */
 import SocialMedia from 'Components/socialMedia';
+import MessageBlock from 'Components/messageBlock';
 import Conditional from 'Components/conditional';
 
 /* Constants */
@@ -13,12 +14,15 @@ import messageWallContractABI from 'Constants/messageWallContractABI.json';
 
 const ConnectMe = () => {
 	const [currentAccount, setCurrentAccount] = useState('');
+	const [messageContent, setMessageContent] = useState('');
 	const [currentState, setCurrentState] = useState({
 		isWalletConnected: false,
 		isWalletInstalled: false
 	});
 	const [totalMessageCount, setMessageCount] = useState(0);
+	const [messages, setMessages] = useState(null);
 	const [isMinting, setIsMinting] = useState(false);
+
 	const checkIfWalletIsConnected = async () => {
 		try {
 			const {ethereum} = window;
@@ -37,7 +41,18 @@ const ConnectMe = () => {
 				const signer = provider.getSigner();
 				const messageWallContract = new ethers.Contract(MESSAGE_WALL_CONTRACT_ADDRESS, messageWallContractABI.abi, signer);
 				const messageCount = await messageWallContract.getTotalMessageCount();
+				const messages = await messageWallContract.getMessages();
 				if(messageCount) setMessageCount(messageCount.toNumber());
+				let filteredMessages = [];
+				messages.forEach(message => {
+					filteredMessages.push({
+						sender: message.sender,
+						timestamp: new Date(message.timestamp * 1000)?.toString(),
+						message: message.message,
+						timestampNum: message.timestamp * 1000,
+					});
+				});
+				if(filteredMessages.length > 0) setMessages(filteredMessages);
 			} else {
 				setCurrentState({
 					isWalletConnected: false,
@@ -77,12 +92,25 @@ const ConnectMe = () => {
 				const provider = new ethers.providers.Web3Provider(ethereum);
 				const signer = provider.getSigner();
 				const messageWallContract = new ethers.Contract(MESSAGE_WALL_CONTRACT_ADDRESS, messageWallContractABI.abi, signer);
-				let messageTxn = await messageWallContract.incrementMessageCount();
-				setIsMinting(true);
-				await messageTxn.wait();
-				setIsMinting(false);
-				const messageCount = await messageWallContract.getTotalMessageCount();
-				if(messageCount) setMessageCount(messageCount.toNumber());
+				if(messageContent) {
+					let messageTxn = await messageWallContract.setMessage(messageContent);
+					setIsMinting(true);
+					await messageTxn.wait();
+					setIsMinting(false);
+					const messageCount = await messageWallContract.getTotalMessageCount();
+					if (messageCount) setMessageCount(messageCount.toNumber());
+					const messages = await messageWallContract.getMessages();
+					let filteredMessages = [];
+					messages.forEach(message => {
+						filteredMessages.push({
+							sender: message.sender,
+							timestamp: new Date(message.timestamp * 1000)?.toString(),
+							timestampNum: message.timestamp * 1000,
+							message: message.message
+						});
+					});
+					if(filteredMessages.length > 0) setMessages(filteredMessages);
+				}
 			} else {
 				setCurrentState({
 					isWalletConnected: false,
@@ -97,7 +125,6 @@ const ConnectMe = () => {
 	useEffect(() => {
 		checkIfWalletIsConnected().then();
 	}, []);
-
 	const {isWalletConnected, isWalletInstalled} = currentState;
 	return (
 		<div className={'connect-me-container'}>
@@ -108,7 +135,12 @@ const ConnectMe = () => {
 					Blockchain
 				</h1>
 			</div>
-			<div className="about-me-container yellow-color-background mt-2 cursor-pointer">
+			<textarea
+				placeholder={'Send me a message...'}
+				className={'message-input'}
+				onChange={ (e) => setMessageContent(e.target.value)}
+			/>
+			<div className="about-me-container yellow-color-background mt-1 cursor-pointer">
 				<Conditional if={!isWalletInstalled}>
 					<a href={'https://metamask.io/'} className="download-pdf-anchor" target={'_blank'} rel="noreferrer" >
 						<span
@@ -144,10 +176,15 @@ const ConnectMe = () => {
 					</div>
 				</Conditional>
 			</div>
+			<Conditional if={messages && messages.length > 0}>
+				<div className={'message-section-container'}>
+					{messages?.sort( (a, b) => b.timestampNum - a.timestampNum)?.map( ({message, sender, timestamp, timestampNum}) => <MessageBlock message={message} sender={sender} timestamp={timestamp} key={timestampNum}/>)}
+				</div>
+			</Conditional>
 			<SocialMedia/>
 			<div className="yellow-color poppins-font fw-bold fs-2 position-left-bottom-fixed">
 				<span className="my-details white-color">{`Total `}</span>
-				Waves:&nbsp;
+				Messages:&nbsp;
 				<span className="my-details white-color">{totalMessageCount}</span>
 			</div>
 		</div>
