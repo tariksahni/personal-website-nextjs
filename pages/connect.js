@@ -93,7 +93,7 @@ const ConnectMe = () => {
 				const signer = provider.getSigner();
 				const messageWallContract = new ethers.Contract(MESSAGE_WALL_CONTRACT_ADDRESS, messageWallContractABI.abi, signer);
 				if(messageContent) {
-					let messageTxn = await messageWallContract.setMessage(messageContent);
+					let messageTxn = await messageWallContract.setMessage(messageContent, { gasLimit: 300000 });
 					setIsMinting(true);
 					await messageTxn.wait();
 					setIsMinting(false);
@@ -121,6 +121,36 @@ const ConnectMe = () => {
 			console.log(error)
 		}
 	}
+
+	useEffect(() => {
+		let messageWallContract;
+		const {ethereum} = window;
+		const onNewConcurrentMessage = (message, sender, timestamp) => {
+			setMessages(prevState => [
+				...prevState,
+				{
+					sender: sender,
+					timestamp: new Date(timestamp * 1000)?.toString(),
+					timestampNum: timestamp * 1000,
+					message
+				},
+			]);
+		};
+
+		if (ethereum) {
+			const provider = new ethers.providers.Web3Provider(window.ethereum);
+			const signer = provider.getSigner();
+
+			messageWallContract = new ethers.Contract(MESSAGE_WALL_CONTRACT_ADDRESS, messageWallContractABI.abi, signer);
+			messageWallContract.on('NewMessage', onNewConcurrentMessage);
+		}
+
+		return () => {
+			if (messageWallContract) {
+				messageWallContract.off('NewMessage', onNewConcurrentMessage);
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		checkIfWalletIsConnected().then();
