@@ -110,6 +110,7 @@ const ConnectMe = () => {
 						});
 					});
 					if(filteredMessages.length > 0) setMessages(filteredMessages);
+					setMessageCount('');
 				}
 			} else {
 				setCurrentState({
