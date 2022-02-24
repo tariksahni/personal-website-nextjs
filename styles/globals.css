@@ -865,3 +865,16 @@ body{
   margin-left: 1em;
 }
 
+
+
+
+
+.seatmap-container{
+  height: 90vh;
+  width: 100vw;
+}
+
+.seatmap-container iframe{
+  height: 100%;
+  width: 100%;
+}

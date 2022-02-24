@@ -45,6 +45,11 @@ const HomePage = () => {
                                   <span className="black-color upper-case fs-2  fw-bold open-sans-font">{`Let's connect on blockchain Ξ`}</span>
                               </div>
                           </Link>
+                          <Link href={'/seatmap'}>
+                              <div className="about-me-container mt-2 yellow-color-background cursor-pointer">
+                                  <span className="black-color upper-case fs-2  fw-bold open-sans-font">{`Seatmap check`}</span>
+                              </div>
+                          </Link>
                       </div>
                   </div>
               </div>
