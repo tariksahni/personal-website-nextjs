@@ -1,9 +1,8 @@
 import React, {useRef} from 'react';
 
-const SeatMap = () => {
-	const iframeNode = useRef(null);
+class SeatMap extends React.Component{
 
-	const seatMapListener = {
+ 	seatMapListener = {
 		iframeInitCompleted: () => {
 			const {
 				product: { currency },
@@ -103,22 +102,25 @@ const SeatMap = () => {
 
 		onSeatsViewExpanded: () => {},
 	};
-
-	const iframeOnLoad = () => {
-		const iframeWindow = iframeNode.current.contentWindow;
-		console.log("aaya check", iframeWindow, iframeNode.current);
-		//iframeWindow.init(seatMapListener)
+	onIframeLoaded = () => {
+		const iframeWindow = this.seatmapIframe.contentWindow;
+		console.log("aaya check", iframeWindow);
+		// iframeWindow.init(seatMapListener)
 	}
-	return (
-		<div className={'seatmap-container'}>
-			<iframe
-				title="Seat Selection"
-				src={'https://www.stage-headout.com/seatmap/tour-group/3023?date=2022-02-26&time=19:30:00&showOnly=true&currencyCode=USD'}
-				onLoad={iframeOnLoad}
-				ref={iframeNode}
-			></iframe>
-		</div>
-	)
+	render () {
+		return (
+			<div className={'seatmap-container'}>
+				<iframe
+					title="Seat Selection"
+					src={'https://www.stage-headout.com/seatmap/tour-group/3023?date=2022-02-26&time=19:30:00&showOnly=true&currencyCode=USD'}
+					onLoad={() => {
+						this.onIframeLoaded(this.seatMapListener);
+					}}
+					ref={node => (this.seatmapIframe = node)}
+				></iframe>
+			</div>
+		)
+	}
 }
 
 export default SeatMap;
