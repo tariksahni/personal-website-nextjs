@@ -107,7 +107,8 @@ class SeatMap extends React.Component{
 
 	onIframeLoaded = () => {
 		const iframeWindow = this.seatmapIframe.contentWindow;
-		console.log("aaya check", iframeWindow);
+		let iframe = document.getElementById('seatmap');
+		console.log("aaya loaded", iframeWindow, iframe.contentWindow);
 		// iframeWindow.init(seatMapListener)
 	}
 
@@ -115,6 +116,8 @@ class SeatMap extends React.Component{
 		return (
 			<div className={'seatmap-container'}>
 				<iframe
+					name="seat-map"
+					id={'seatmap'}
 					title="Seat Selection"
 					src={'https://www.stage-headout.com/seatmap/tour-group/3023?date=2022-02-26&time=19:30:00&showOnly=true&currencyCode=USD'}
 					onLoad={() => {
