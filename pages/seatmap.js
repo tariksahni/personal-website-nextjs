@@ -1,4 +1,4 @@
-import React, {useRef} from 'react';
+import React from 'react';
 
 class SeatMap extends React.Component{
 
@@ -27,13 +27,6 @@ class SeatMap extends React.Component{
 		},
 
 		onSeatAdded: seat => {
-			const {
-				product: { id },
-			} = this.props;
-			trackEvent({
-				eventName: 'Experience Seat Selected',
-				'Tour Group ID': id,
-			});
 			this.setState({
 				lastAddedSeat: seat,
 			});
@@ -52,7 +45,7 @@ class SeatMap extends React.Component{
 		},
 
 		onSeatSelectionSubmitted: seatsSelected => {
-			this.props.onSeatMapChange({ seatMapInfo: seatsSelected });
+			console.log("onSeatSelectionSubmitted", seatsSelected)
 		},
 
 		initializingSeatmapStarted: () => {},
@@ -102,6 +95,7 @@ class SeatMap extends React.Component{
 
 		onSeatsViewExpanded: () => {},
 	};
+
 	onIframeLoaded = () => {
 		const iframeWindow = this.seatmapIframe.contentWindow;
 		console.log("aaya check", iframeWindow);
