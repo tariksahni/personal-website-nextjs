@@ -95,12 +95,22 @@ class SeatMap extends React.Component{
 
 		onSeatsViewExpanded: () => {},
 	};
+	componentDidMount() {
+		window.addEventListener(
+			'message',
+			(e) => {
+				console.log(e);
+			},
+			true
+		);
+	}
 
 	onIframeLoaded = () => {
 		const iframeWindow = this.seatmapIframe.contentWindow;
 		console.log("aaya check", iframeWindow);
 		// iframeWindow.init(seatMapListener)
 	}
+
 	render () {
 		return (
 			<div className={'seatmap-container'}>
