@@ -31,18 +31,14 @@ const HomePage = () => {
                               <span className="my-details white-color">{`I'm `}</span>
                               Tarik Sahni
                           </h1>
-                          <p className="open-sans-font white-color fs-2 description-text">Creative and self-starting
-                              Front-End Developer with 4+ years experience building stable E2E websites and apps in
-                              fast-paced, collaborative environments with great performance and SEO. Highly skilled in
-                              HTML/CSS/JavaScript and working knowledge of Web frameworks. Well-versed in Scrum and
-                              Agile.</p>
+                          <p className="open-sans-font white-color fs-2 description-text">{"I am a founding member at Investmint, India's first signal-based trading app. Investmint makes trading and investing effortless for everyone. Whether you are an experienced investor, or a curious newcomer, with actionable signals from data-driven trading models, anyone can start in the stock market right from day one."}</p>
                           <div className="about-me-container yellow-color-background">
-                              <a href={MyResume} download={'Tarik_Sahni_FE_Resume'} className="download-pdf-anchor"><span
-                                  className="black-color upper-case fs-2  fw-bold open-sans-font">Download Resume &nbsp; 💻</span></a>
+                              <a href={'https://www.investmint.club/'} target={'_blank'} rel="noreferrer"  className="download-pdf-anchor"><span
+                                  className="black-color upper-case fs-2  fw-bold open-sans-font">Explore Investmint</span></a>
                           </div>
                           <Link href={'/connect'}>
                               <div className="about-me-container mt-2 yellow-color-background cursor-pointer">
-                                  <span className="black-color upper-case fs-2  fw-bold open-sans-font">{`Let's connect on blockchain Ξ`}</span>
+                                  <span className="black-color upper-case fs-2  fw-bold open-sans-font">{`Let's connect`}</span>
                               </div>
                           </Link>
                       </div>
