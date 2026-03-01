@@ -11,6 +11,7 @@
     "paths": {
       "Assets/*": ["src/assets/*"],
       "Hooks/*": ["src/hooks/*"],
+      "Lib/*": ["src/lib/*"],
       "Static/*": ["public/*"],
       "Server/*": ["src/server/*"],
       "Store/*": ["src/store/*"],

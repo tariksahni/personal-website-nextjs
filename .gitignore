@@ -35,3 +35,10 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# HeadoutAgentsConfig - managed by headout/HeadoutAgentsConfig
+.claude/
+.claude.backup.*
+.agents-manifest.json
+.agents-version
+/thoughts*

@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 html, body {
   position: relative;
   width: 100%;
@@ -425,6 +429,12 @@ body{
   width: 100vw;
   background-color: #111;
   padding: 0;
+  font-size: 16px;
+}
+
+/* Home and connect pages need the original constrained styles */
+.main-container,
+.connect-me-container{
   overflow: hidden;
   font-size: 10px;
 }
