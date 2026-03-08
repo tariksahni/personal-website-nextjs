@@ -84,23 +84,20 @@ export default function Dashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="tw-max-w-7xl tw-mx-auto tw-px-6">
-          <nav className="tw-flex tw-gap-1 tw--mb-px">
+        <div className="tw-max-w-7xl tw-mx-auto tw-px-6 tw-pb-3">
+          <nav className="tw-flex tw-gap-1">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`tw-relative tw-px-4 tw-py-2.5 tw-text-sm tw-font-medium tw-transition-all tw-flex tw-items-center tw-gap-1.5 ${
+                className={`tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-flex tw-items-center tw-gap-1.5 tw-rounded-lg ${
                   activeTab === tab.id
-                    ? 'tw-text-purps-500'
-                    : 'tw-text-grey-500 hover:tw-text-grey-700'
+                    ? 'tw-bg-purps-500 tw-text-white tw-shadow-sm'
+                    : 'tw-text-grey-500 hover:tw-text-grey-700 hover:tw-bg-grey-100'
                 }`}
               >
                 {tab.icon}
                 {tab.label}
-                {activeTab === tab.id && (
-                  <span className="tw-absolute tw-bottom-0 tw-left-2 tw-right-2 tw-h-0.5 tw-bg-purps-500 tw-rounded-full" />
-                )}
               </button>
             ))}
           </nav>
@@ -109,9 +106,11 @@ export default function Dashboard() {
 
       {/* Tab Content */}
       <main className="tw-max-w-7xl tw-mx-auto tw-px-6 tw-py-6">
-        {activeTab === 'tasks' && <TasksTab />}
-        {activeTab === 'projects' && <ProjectsTab />}
-        {activeTab === 'teams' && <TeamsTab />}
+        <div className="tw-bg-white tw-rounded-xl tw-shadow-sm tw-border tw-border-grey-200 tw-p-6">
+          {activeTab === 'tasks' && <TasksTab />}
+          {activeTab === 'projects' && <ProjectsTab />}
+          {activeTab === 'teams' && <TeamsTab />}
+        </div>
       </main>
     </div>
   )

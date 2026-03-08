@@ -512,7 +512,9 @@ body{
 .main-container{
   height: 100vh;
   width: 100vw;
-  background-color: #fafafa;
+  background-color: rgba(180, 130, 245, 0.08);
+  overflow: hidden;
+  position: relative;
 }
 @media (min-width: 991px)  {
   .image-frame{
@@ -538,6 +540,7 @@ body{
     background-color: #fafafa;
     border-radius: 1.5em;
     position: relative;
+    overflow: hidden;
   }
   .image-container img{
     border-radius: 1.5em;
@@ -662,7 +665,10 @@ body{
     align-self: flex-end;
     height: 16em;
     width: 16em;
+    min-height: 16em;
+    min-width: 16em;
     border-radius: 50%;
+    overflow: hidden;
     z-index: 100;
     box-shadow: 0 4px 24px rgba(0,0,0,.12);
     background-color: #fafafa;
@@ -769,6 +775,25 @@ body{
   color: #555;
   margin-bottom: 0.5em;
 }
+
+/* Headout watermark */
+.watermark-single-link{
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1;
+  display: inline;
+  width: auto;
+  height: auto;
+  padding: 0;
+}
+.watermark-single{
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+
 
 .about-me-container a{
   text-decoration: none;

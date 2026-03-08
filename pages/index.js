@@ -10,6 +10,9 @@ const HomePage = () => {
   return (
       <>
           <section className="main-container">
+              <a href="https://www.headout.com/" target="_blank" rel="noreferrer" className="watermark-single-link">
+                  <img src="/images/headout-logo.png" alt="Headout" className="watermark-single" />
+              </a>
               <div className="image-frame" style={{backgroundColor: '#B482F5'}} />
               <div className="content-container">
                   <div className="image-container">
@@ -18,7 +21,7 @@ const HomePage = () => {
                   </div>
                   <div className="home-page-details">
                       <div className="image-container-mobile">
-                          <Image src="/images/Tarik_Shillong.jpg" priority width={256} height={256} objectFit='cover' alt="Tarik Sahni" title="tarik-sahni" aria-hidden="true"
+                          <Image src="/images/Tarik_Shillong.jpg" priority layout='fill' objectFit='cover' alt="Tarik Sahni" title="tarik-sahni" aria-hidden="true"
                                  role="presentation"/>
                       </div>
                       <div className="intro-section">
