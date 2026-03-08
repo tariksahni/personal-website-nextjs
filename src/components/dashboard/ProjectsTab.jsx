@@ -21,17 +21,30 @@ function timeAgo(dateStr) {
   return `${days}d ago`
 }
 
+const STAGE_COLORS = {
+  planning: { bg: 'tw-bg-sky-500/10', text: 'tw-text-sky-600', border: 'tw-border-sky-500/20' },
+  handoff: { bg: 'tw-bg-purps-500/10', text: 'tw-text-purps-500', border: 'tw-border-purps-500/20' },
+  edd: { bg: 'tw-bg-candy-500/10', text: 'tw-text-candy-500', border: 'tw-border-candy-500/20' },
+  implementation: { bg: 'tw-bg-purps-500/10', text: 'tw-text-purps-600', border: 'tw-border-purps-500/20' },
+  review: { bg: 'tw-bg-sky-500/10', text: 'tw-text-sky-600', border: 'tw-border-sky-500/20' },
+  qa: { bg: 'tw-bg-candy-500/10', text: 'tw-text-candy-500', border: 'tw-border-candy-500/20' },
+  live: { bg: 'tw-bg-okaygreen-500/10', text: 'tw-text-okaygreen-500', border: 'tw-border-okaygreen-500/20' },
+}
+
+const PRIORITY_BORDER = {
+  urgent: 'tw-border-l-warningred-400',
+  high: 'tw-border-l-candy-400',
+  normal: 'tw-border-l-purps-300',
+  low: 'tw-border-l-grey-300',
+}
+
 function StageBadge({ stage }) {
   const stageObj = STAGES.find((s) => s.id === stage)
   const label = stageObj?.label || stage
-  const isLive = stage === 'live'
+  const colors = STAGE_COLORS[stage] || STAGE_COLORS.planning
   return (
     <span
-      className={`tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-border ${
-        isLive
-          ? 'tw-bg-okaygreen-500/10 tw-text-okaygreen-500 tw-border-okaygreen-500/20'
-          : 'tw-bg-purps-500/10 tw-text-purps-500 tw-border-purps-500/20'
-      }`}
+      className={`tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-border ${colors.bg} ${colors.text} ${colors.border}`}
     >
       {label}
     </span>
@@ -53,29 +66,9 @@ function PriorityBadge({ priority }) {
   )
 }
 
-function ProgressBar({ checked, total }) {
-  const pct = total > 0 ? Math.round((checked / total) * 100) : 0
-  return (
-    <div className="tw-flex tw-items-center tw-gap-2 tw-min-w-[120px]">
-      <div className="tw-flex-1 tw-h-1.5 tw-bg-grey-100 tw-rounded-full tw-overflow-hidden">
-        <div
-          className={`tw-h-full tw-rounded-full tw-transition-all ${
-            pct === 100 ? 'tw-bg-okaygreen-500' : 'tw-bg-purps-500'
-          }`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="tw-text-xs tw-text-grey-400 tw-tabular-nums tw-whitespace-nowrap">
-        {checked}/{total}
-      </span>
-    </div>
-  )
-}
-
 export default function ProjectsTab() {
   const [projects, setProjects] = useState([])
   const [teams, setTeams] = useState([])
-  const [checklistMap, setChecklistMap] = useState({})
   const [loading, setLoading] = useState(true)
 
   const [filterTeam, setFilterTeam] = useState('')
@@ -93,14 +86,11 @@ export default function ProjectsTab() {
   async function fetchData() {
     setLoading(true)
 
-    const [projectsRes, checklistRes, teamsRes] = await Promise.all([
+    const [projectsRes, teamsRes] = await Promise.all([
       supabase
         .from('projects')
         .select('*, teams(name)')
         .order('updated_at', { ascending: false }),
-      supabase
-        .from('project_checklist')
-        .select('project_id, stage, is_checked'),
       supabase
         .from('teams')
         .select('id, name')
@@ -110,25 +100,11 @@ export default function ProjectsTab() {
     setProjects(projectsRes.data || [])
     setTeams(teamsRes.data || [])
 
-    const map = {}
-    for (const item of checklistRes.data || []) {
-      const key = `${item.project_id}::${item.stage}`
-      if (!map[key]) map[key] = { checked: 0, total: 0 }
-      map[key].total += 1
-      if (item.is_checked) map[key].checked += 1
-    }
-    setChecklistMap(map)
-
     setLoading(false)
   }
 
   function refetchProjects() {
     fetchData()
-  }
-
-  function getProgress(projectId, stage) {
-    const key = `${projectId}::${stage}`
-    return checklistMap[key] || { checked: 0, total: 0 }
   }
 
   const filtered = useMemo(() => {
@@ -171,7 +147,12 @@ export default function ProjectsTab() {
       {/* Header */}
       <div className="tw-flex tw-items-center tw-justify-between tw-mb-6">
         <div>
-          <h2 className="tw-text-lg tw-font-semibold tw-text-grey-900">Projects</h2>
+          <h2 className="tw-text-lg tw-font-semibold tw-text-grey-900 tw-flex tw-items-center tw-gap-2">
+            <svg className="tw-w-5 tw-h-5 tw-text-purps-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+            </svg>
+            Projects
+          </h2>
           <p className="tw-text-sm tw-text-grey-500 tw-mt-0.5">
             {filtered.length} project{filtered.length !== 1 ? 's' : ''}
             {(filterTeam || filterStage || filterPriority) && projects.length !== filtered.length
@@ -251,9 +232,9 @@ export default function ProjectsTab() {
       {/* Empty state */}
       {projects.length === 0 && (
         <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-24">
-          <div className="tw-w-14 tw-h-14 tw-bg-white tw-border tw-border-grey-200 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-mb-5 tw-shadow-sm">
-            <svg className="tw-w-6 tw-h-6 tw-text-grey-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+          <div className="tw-w-14 tw-h-14 tw-bg-purps-500/5 tw-border tw-border-purps-500/10 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-mb-5">
+            <svg className="tw-w-7 tw-h-7 tw-text-purps-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" />
             </svg>
           </div>
           <p className="tw-text-grey-700 tw-text-sm tw-mb-1">No projects yet</p>
@@ -278,13 +259,12 @@ export default function ProjectsTab() {
       {filtered.length > 0 && (
         <div className="tw-space-y-2">
           {filtered.map((project) => {
-            const progress = getProgress(project.id, project.stage)
             const teamName = project.teams?.name
             return (
               <div
                 key={project.id}
                 onClick={() => setSelectedProject(project)}
-                className="tw-bg-white tw-border tw-border-grey-200 tw-rounded-xl tw-px-5 tw-py-4 tw-cursor-pointer tw-transition-all hover:tw-border-grey-300 hover:tw-shadow-md tw-group"
+                className={`tw-bg-white tw-border tw-border-grey-200 tw-rounded-xl tw-px-5 tw-py-4 tw-cursor-pointer tw-transition-all hover:tw-border-grey-300 hover:tw-shadow-md tw-group tw-border-l-[3px] ${PRIORITY_BORDER[project.priority] || PRIORITY_BORDER.normal}`}
               >
                 <div className="tw-flex tw-items-center tw-gap-4">
                   {/* Name and team */}
@@ -303,11 +283,6 @@ export default function ProjectsTab() {
                   {/* Stage */}
                   <div className="tw-flex-shrink-0">
                     <StageBadge stage={project.stage} />
-                  </div>
-
-                  {/* Progress */}
-                  <div className="tw-flex-shrink-0 tw-hidden sm:tw-block">
-                    <ProgressBar checked={progress.checked} total={progress.total} />
                   </div>
 
                   {/* Updated */}

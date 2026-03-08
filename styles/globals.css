@@ -427,7 +427,7 @@ h1, h2, h3, h4, h5, h6, p, span {
 body{
   height: 100vh;
   width: 100vw;
-  background-color: #111;
+  background-color: #fafafa;
   padding: 0;
   font-size: 16px;
 }
@@ -445,10 +445,10 @@ body{
   font-family: 'Open Sans', sans-serif;
 }
 .yellow-color{
-  color: #ffb400;
+  color: #8000ff;
 }
 .white-color{
-  color: #fff;
+  color: #222;
 }
 
 .black-color{
@@ -458,7 +458,7 @@ body{
   text-transform: uppercase;
 }
 .yellow-color-background{
-  background-color: #ffb400;
+  background-color: #8000ff;
 }
 @media (max-width: 991px)  {
   .fs-2{
@@ -512,7 +512,7 @@ body{
 .main-container{
   height: 100vh;
   width: 100vw;
-  background-color: #111;
+  background-color: #fafafa;
 }
 @media (min-width: 991px)  {
   .image-frame{
@@ -534,8 +534,8 @@ body{
     margin-left: 3em;
     height: calc(100vh - 6em);
     z-index: 100;
-    box-shadow: 0 0 7px rgba(0,0,0,.9);
-    background-color: #111;
+    box-shadow: 0 4px 24px rgba(0,0,0,.12);
+    background-color: #fafafa;
     border-radius: 1.5em;
     position: relative;
   }
@@ -555,7 +555,82 @@ body{
   }
   .description-text{
     line-height: 2em;
-    margin: 1em 0 1.5em 0;
+    margin: 0.5em 0 1em 0;
+  }
+  .headout-brand{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .headout-logo{
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .headout-link{
+    color: #8000ff;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline;
+    width: auto;
+    height: auto;
+    padding: 0;
+  }
+  .headout-link:hover{
+    text-decoration: underline;
+  }
+  .home-cta-buttons{
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .app-store-links{
+    display: flex;
+    gap: 14px;
+    margin-top: 1.5em;
+    flex-wrap: nowrap;
+    overflow: visible;
+    width: auto;
+  }
+  .store-badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    border-radius: 24px;
+    background: #f0f0f0;
+    color: #333;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all .2s;
+    border: 1px solid #e0e0e0;
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: auto;
+    height: auto;
+  }
+  .store-badge-primary{
+    background: #8000ff;
+    color: #fff;
+    border-color: #8000ff;
+  }
+  .store-badge-primary .headout-logo{
+    border-radius: 4px;
+  }
+  .store-badge:hover{
+    background: #8000ff;
+    color: #fff;
+    border-color: #8000ff;
+  }
+  .store-badge svg{
+    flex-shrink: 0;
+  }
+  .store-badge span{
+    display: inline;
+    white-space: nowrap;
   }
   .about-me-container{
     height: 4.8em;
@@ -565,9 +640,6 @@ body{
     align-items: center;
     padding: 0 2.4em;
     width: max-content;
-  }
-  .mt-2{
-    margin-top: 2.4em;
   }
   .about-me-container:hover{
     transform: translateY(-0.1em);
@@ -592,9 +664,9 @@ body{
     width: 16em;
     border-radius: 50%;
     z-index: 100;
-    box-shadow: 0 0 7px rgba(0,0,0,.9);
-    background-color: #111;
-    border: 4px solid #252525;
+    box-shadow: 0 4px 24px rgba(0,0,0,.12);
+    background-color: #fafafa;
+    border: 4px solid #e5e5e5;
   }
   .image-container-mobile img{
     border-radius: 50%;
@@ -627,7 +699,60 @@ body{
 
   .description-text{
     line-height: 2em;
-    margin: 16px 0 24px 0;
+    margin: 8px 0 16px 0;
+  }
+  .headout-brand{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    justify-content: center;
+    line-height: 1.4;
+  }
+  .headout-logo{
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .headout-link{
+    display: inline;
+    width: auto;
+    height: auto;
+    padding: 0;
+  }
+  .home-cta-buttons{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+  .app-store-links{
+    display: flex;
+    gap: 12px;
+    margin-top: 1.2em;
+    justify-content: center;
+    flex-wrap: nowrap;
+  }
+  .store-badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 22px;
+    background: #f0f0f0;
+    color: #333;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid #e0e0e0;
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: auto;
+    height: auto;
+  }
+  .store-badge span{
+    display: inline;
+    white-space: nowrap;
   }
   .about-me-container{
     height: 4em;
@@ -638,13 +763,10 @@ body{
     padding: 0 2em;
     width: max-content;
   }
-  .mt-2{
-    margin-top: 1.6em;
-  }
 }
 
 .hi-text{
-  color: #eee;
+  color: #555;
   margin-bottom: 0.5em;
 }
 
@@ -674,7 +796,7 @@ body{
   }
 
   li.icon-box:hover {
-    background-color: #ffb400;
+    background-color: #8000ff;
   }
 
   li.icon-box {
@@ -687,7 +809,9 @@ body{
     transition: .3s;
     margin: 20px 0;
     border-radius: 50%;
-    background: #2b2a2a;
+    background: #fff;
+    border: 1.5px solid #e0e0e0;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
   }
 
   a {
@@ -704,7 +828,8 @@ body{
     margin: 0;
     text-align: center;
     border-radius: 30px 0 0 30px;
-    background-color: #ffb400;
+    background-color: #8000ff;
+    color: #fff;
   }
 
   a h2 {
@@ -716,6 +841,7 @@ body{
     opacity: 0;
     color: #fff;
     line-height: 50px;
+    font-size: 14px;
     font-weight: 500;
     transition: all .3s;
     border-radius: 30px;
@@ -724,8 +850,9 @@ body{
     height: 50px;
   }
 
-  .fa {
-    font-size: 19px !important;
+  .fa,
+  .custom-icon {
+    font-size: 20px !important;
     position: absolute;
     pointer-events: none;
     left: 0;
@@ -734,6 +861,15 @@ body{
     display: block;
     text-align: center;
     top: 15px;
+    color: #333;
+  }
+
+  li.icon-box:hover {
+    border-color: #8000ff;
+  }
+
+  li.icon-box:hover .fa,
+  li.icon-box:hover .custom-icon {
     color: white;
   }
 }
@@ -767,7 +903,7 @@ body{
 .ball-element{
   width: 10px;
   height: 10px;
-  background-color: #000000;
+  background-color: #8000ff;
   border-radius: 50%;
 }
 
@@ -816,13 +952,13 @@ body{
 }
 
 .message-element{
-  border: 1px dotted #ffb400;
+  border: 1px dotted #8000ff;
   padding: 1.6em;
   margin: 0 1.6em 1.6em 0;
   display: flex;
   flex-direction: column;
   border-radius: 8px;
-  background: #111111;
+  background: #fff;
   cursor: default;
 }
 
@@ -847,18 +983,23 @@ body{
   overflow: hidden;
   text-overflow: ellipsis;
   width: 70px;
-  color: #ffb400;
+  color: #8000ff;
 }
 .message-input{
   margin-top: 1.6em;
-  background: #333;
-  border: 1px solid #444;
+  background: #fff;
+  border: 1px solid #ddd;
   width: 400px;
   height: 120px;
   border-radius: 16px;
-  color: white;
+  color: #222;
   font-size: 16px;
   padding: 16px;
+}
+.message-input:focus{
+  outline: none;
+  border-color: #8000ff;
+  box-shadow: 0 0 0 3px rgba(128, 0, 255, 0.1);
 }
 
 .mt-1{

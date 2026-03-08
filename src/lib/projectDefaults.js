@@ -1,55 +1,18 @@
 /**
- * Project stage definitions and default checklist items
- * for the EM Command Center project tracker.
+ * Project stage definitions for the EM Command Center project tracker.
  *
  * Flow: Planning → Handoff → EDD → Implementation → Review → QA → Live
  */
 
 export const STAGES = [
-  { id: 'planning', label: 'Planning' },
-  { id: 'handoff', label: 'Handoff' },
-  { id: 'edd', label: 'EDD' },
-  { id: 'implementation', label: 'Implementation' },
-  { id: 'review', label: 'Review' },
-  { id: 'qa', label: 'QA' },
-  { id: 'live', label: 'Live' },
+  { id: 'planning', label: 'Planning', description: 'Define requirements, scope, and timeline. Align with stakeholders.' },
+  { id: 'handoff', label: 'Handoff', description: 'PRD and design handoff to engineering. Clarify specs and edge cases.' },
+  { id: 'edd', label: 'EDD', description: 'Engineering Design Document — technical approach, schema, and architecture.' },
+  { id: 'implementation', label: 'Implementation', description: 'Build the feature — code, data events, localisation, and integration.' },
+  { id: 'review', label: 'Review', description: 'Code review, PR feedback, and iteration.' },
+  { id: 'qa', label: 'QA', description: 'Design QA, functional QA, and data QA sign-off.' },
+  { id: 'live', label: 'Live', description: 'Deployed to production. Smoke tested and stakeholders notified.' },
 ]
-
-export const DEFAULT_CHECKLIST_ITEMS = {
-  planning: [
-    'Requirements & scope defined',
-    'Timeline estimated',
-    'Stakeholder alignment done',
-  ],
-  handoff: [
-    'PRD handoff complete',
-    'Design handoff complete',
-  ],
-  edd: [
-    'Engineering Design Document created',
-    'EDD reviewed & approved',
-  ],
-  implementation: [
-    'Feature branch created',
-    'Core implementation done',
-    'Data events integrated',
-    'Localisation copies added',
-  ],
-  review: [
-    'PR raised',
-    'PR review done',
-  ],
-  qa: [
-    'Design QA passed',
-    'Functional QA passed',
-    'Data QA passed',
-  ],
-  live: [
-    'Deployed to production',
-    'Smoke test passed',
-    'Stakeholders notified',
-  ],
-}
 
 /**
  * Returns the index of a stage in the STAGES array.

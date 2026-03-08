@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { supabase } from 'Lib/supabase'
 import { STAGES, getNextStage, getStageIndex } from 'Lib/projectDefaults'
+import TaskForm from 'Components/dashboard/TaskForm'
 
 const inputClass = "tw-bg-white tw-border tw-border-grey-300 tw-rounded-lg tw-px-3 tw-py-2 tw-text-grey-900 tw-text-sm tw-placeholder-grey-400 focus:tw-outline-none focus:tw-border-purps-400 focus:tw-ring-1 focus:tw-ring-purps-100 tw-transition-all"
 const btnPrimary = "tw-bg-purps-500 tw-text-white tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-semibold hover:tw-bg-purps-600 tw-transition-colors"
@@ -53,15 +54,6 @@ function IconTrash() {
   )
 }
 
-function IconList({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-      <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-    </svg>
-  )
-}
-
 function IconNote({ size = 14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -90,11 +82,6 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
   const [localSecondaryDev, setLocalSecondaryDev] = useState('')
   const [localStageNotes, setLocalStageNotes] = useState({})
 
-  // === Checklist (fetched + locally modified) ===
-  const [checklistItems, setChecklistItems] = useState([])
-  const [localChecklistChanges, setLocalChecklistChanges] = useState({})
-  const [newChecklistItems, setNewChecklistItems] = useState([])
-
   // === Stage TODOs (from tasks table) ===
   const [todos, setTodos] = useState([])
   const [localTodoChanges, setLocalTodoChanges] = useState({})
@@ -112,58 +99,56 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
   const [initialLoading, setInitialLoading] = useState(true)
-  const [newChecklistInput, setNewChecklistInput] = useState({})
   const [newTodoInput, setNewTodoInput] = useState({})
-  const [stageSection, setStageSection] = useState({}) // stageId -> 'checklist'|'notes'|'todos'
+  const [stageSection, setStageSection] = useState({}) // stageId -> 'notes'|'todos'
+  const [showTaskForm, setShowTaskForm] = useState(false)
 
   const nameInputRef = useRef(null)
   const baselineRef = useRef(null)
 
-  // === Initialization ===
+  // === Initialization — fetches project fresh from Supabase to avoid stale prop data ===
   useEffect(() => {
     if (!project?.id) return
     setInitialLoading(true)
-
-    setLocalName(project.name || '')
-    setLocalDescription(project.description || '')
-    setLocalPriority(project.priority || 'normal')
-    setLocalTeamId(project.team_id || '')
-    setLocalStage(project.stage || 'planning')
-    setLocalPrimaryDev(project.primary_dev_id || '')
-    setLocalSecondaryDev(project.secondary_dev_id || '')
-    setLocalStageNotes(project.stage_notes || {})
-    setOpenStages({ [project.stage]: true })
     setEditingName(false)
     setConfirmDelete(false)
-
-    setLocalChecklistChanges({})
-    setNewChecklistItems([])
     setLocalTodoChanges({})
     setNewTodos([])
     setDeletedTodoIds([])
-    setNewChecklistInput({})
     setNewTodoInput({})
     setStageSection({})
     setSaveError(null)
-
-    baselineRef.current = {
-      name: project.name || '',
-      description: project.description || '',
-      priority: project.priority || 'normal',
-      team_id: project.team_id || '',
-      stage: project.stage || 'planning',
-      primary_dev_id: project.primary_dev_id || '',
-      secondary_dev_id: project.secondary_dev_id || '',
-      stage_notes: project.stage_notes || {},
-    }
+    setShowTaskForm(false)
 
     Promise.all([
-      supabase.from('project_checklist').select('*').eq('project_id', project.id).order('stage').order('sort_order'),
+      supabase.from('projects').select('*').eq('id', project.id).single(),
       supabase.from('teams').select('id, name').order('name'),
       supabase.from('engineers').select('id, name, team_id, role').order('name'),
       supabase.from('tasks').select('*').eq('project_id', project.id).order('created_at'),
-    ]).then(([checklistRes, teamsRes, engineersRes, todosRes]) => {
-      setChecklistItems(checklistRes.data || [])
+    ]).then(([projectRes, teamsRes, engineersRes, todosRes]) => {
+      const p = projectRes.data || project
+
+      setLocalName(p.name || '')
+      setLocalDescription(p.description || '')
+      setLocalPriority(p.priority || 'normal')
+      setLocalTeamId(p.team_id || '')
+      setLocalStage(p.stage || 'planning')
+      setLocalPrimaryDev(p.primary_dev_id || '')
+      setLocalSecondaryDev(p.secondary_dev_id || '')
+      setLocalStageNotes(p.stage_notes || {})
+      setOpenStages({ [p.stage || 'planning']: true })
+
+      baselineRef.current = {
+        name: p.name || '',
+        description: p.description || '',
+        priority: p.priority || 'normal',
+        team_id: p.team_id || '',
+        stage: p.stage || 'planning',
+        primary_dev_id: p.primary_dev_id || '',
+        secondary_dev_id: p.secondary_dev_id || '',
+        stage_notes: p.stage_notes || {},
+      }
+
       setTeams(teamsRes.data || [])
       setEngineers(engineersRes.data || [])
       setTodos(todosRes.data || [])
@@ -191,13 +176,11 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
     if (localPrimaryDev !== b.primary_dev_id) return true
     if (localSecondaryDev !== b.secondary_dev_id) return true
     if (JSON.stringify(localStageNotes) !== JSON.stringify(b.stage_notes)) return true
-    if (Object.keys(localChecklistChanges).length > 0) return true
-    if (newChecklistItems.length > 0) return true
     if (Object.keys(localTodoChanges).length > 0) return true
     if (newTodos.length > 0) return true
     if (deletedTodoIds.length > 0) return true
     return false
-  }, [localName, localDescription, localPriority, localTeamId, localStage, localPrimaryDev, localSecondaryDev, localStageNotes, localChecklistChanges, newChecklistItems, localTodoChanges, newTodos, deletedTodoIds])
+  }, [localName, localDescription, localPriority, localTeamId, localStage, localPrimaryDev, localSecondaryDev, localStageNotes, localTodoChanges, newTodos, deletedTodoIds])
 
   // === Save handler ===
   async function handleSave() {
@@ -218,25 +201,6 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
       }).eq('id', project.id)
 
       if (projectError) throw projectError
-
-      const checklistUpdates = Object.entries(localChecklistChanges)
-      for (const [itemId, isChecked] of checklistUpdates) {
-        const { error } = await supabase.from('project_checklist').update({ is_checked: isChecked }).eq('id', itemId)
-        if (error) throw error
-      }
-
-      if (newChecklistItems.length > 0) {
-        const { error } = await supabase.from('project_checklist').insert(
-          newChecklistItems.map((item, idx) => ({
-            project_id: project.id,
-            stage: item.stage,
-            item: item.item,
-            is_checked: item.is_checked,
-            sort_order: 100 + idx,
-          }))
-        )
-        if (error) throw error
-      }
 
       const todoUpdates = Object.entries(localTodoChanges)
       for (const [todoId, isDone] of todoUpdates) {
@@ -274,21 +238,14 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
         stage_notes: localStageNotes,
       }
 
-      // Re-fetch checklist & todos (new items now have real IDs)
-      const [checklistRes, todosRes] = await Promise.all([
-        supabase.from('project_checklist').select('*').eq('project_id', project.id).order('stage').order('sort_order'),
-        supabase.from('tasks').select('*').eq('project_id', project.id).order('created_at'),
-      ])
-      setChecklistItems(checklistRes.data || [])
+      // Re-fetch todos (new items now have real IDs)
+      const todosRes = await supabase.from('tasks').select('*').eq('project_id', project.id).order('created_at')
       setTodos(todosRes.data || [])
 
       // Reset change tracking
-      setLocalChecklistChanges({})
-      setNewChecklistItems([])
       setLocalTodoChanges({})
       setNewTodos([])
       setDeletedTodoIds([])
-      setNewChecklistInput({})
       setNewTodoInput({})
 
       setSaving(false)
@@ -318,28 +275,6 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
   }
 
   // === Interaction handlers (all local, no DB calls) ===
-
-  function toggleChecklistItem(itemId) {
-    const item = checklistItems.find(i => i.id === itemId)
-    if (!item) return
-    const currentState = localChecklistChanges[itemId] !== undefined ? localChecklistChanges[itemId] : item.is_checked
-    setLocalChecklistChanges(prev => ({ ...prev, [itemId]: !currentState }))
-  }
-
-  function toggleNewChecklistItem(tempId) {
-    setNewChecklistItems(prev => prev.map(i => i.tempId === tempId ? { ...i, is_checked: !i.is_checked } : i))
-  }
-
-  function addChecklistItem(stageId) {
-    const text = (newChecklistInput[stageId] || '').trim()
-    if (!text) return
-    setNewChecklistItems(prev => [...prev, { tempId: Date.now() + '_' + Math.random(), stage: stageId, item: text, is_checked: false }])
-    setNewChecklistInput(prev => ({ ...prev, [stageId]: '' }))
-  }
-
-  function removeNewChecklistItem(tempId) {
-    setNewChecklistItems(prev => prev.filter(i => i.tempId !== tempId))
-  }
 
   function toggleTodo(todoId) {
     const todo = todos.find(t => t.id === todoId)
@@ -376,6 +311,25 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
     setOpenStages(prev => ({ ...prev, [stageId]: !prev[stageId] }))
   }
 
+  // === Task form save handler ===
+  async function handleTaskFormSave(formData) {
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert({ ...formData, project_id: project.id })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating task:', error)
+      return
+    }
+
+    // Add the new task to the local todos list
+    setTodos(prev => [data, ...prev])
+    setShowTaskForm(false)
+    onProjectUpdated()
+  }
+
   // === Overlay close / discard ===
 
   function handleOverlayClose() {
@@ -398,32 +352,15 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
     setLocalPrimaryDev(project.primary_dev_id || '')
     setLocalSecondaryDev(project.secondary_dev_id || '')
     setLocalStageNotes(project.stage_notes || {})
-    setLocalChecklistChanges({})
-    setNewChecklistItems([])
     setLocalTodoChanges({})
     setNewTodos([])
     setDeletedTodoIds([])
-    setNewChecklistInput({})
     setNewTodoInput({})
   }
 
   // === Derived data ===
 
   const currentStageIndex = getStageIndex(localStage)
-
-  function getEffectiveChecklist(stageId) {
-    const dbItems = checklistItems.filter(i => i.stage === stageId).map(item => ({
-      ...item,
-      is_checked: localChecklistChanges[item.id] !== undefined ? localChecklistChanges[item.id] : item.is_checked,
-      isFromDb: true,
-    }))
-    const newItems = newChecklistItems.filter(i => i.stage === stageId).map(item => ({
-      ...item,
-      id: item.tempId,
-      isFromDb: false,
-    }))
-    return [...dbItems, ...newItems]
-  }
 
   function getEffectiveTodos(stageId) {
     const dbTodos = todos
@@ -439,13 +376,6 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
       isFromDb: false,
     }))
     return [...dbTodos, ...newItems]
-  }
-
-  function stageProgress(stageId) {
-    const items = getEffectiveChecklist(stageId)
-    if (items.length === 0) return { checked: 0, total: 0 }
-    const checked = items.filter(i => i.is_checked).length
-    return { checked, total: items.length }
   }
 
   // === Helpers ===
@@ -527,7 +457,7 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
             </button>
           </div>
 
-          {/* Second row: badges */}
+          {/* Second row: badges + add task button */}
           <div className="tw-flex tw-items-center tw-gap-2 tw-mt-2 tw-flex-wrap">
             <span className={`tw-text-xs tw-font-medium tw-px-2 tw-py-0.5 tw-rounded-full ${priorityBadgeClasses(localPriority)}`}>
               {localPriority.charAt(0).toUpperCase() + localPriority.slice(1)}
@@ -540,6 +470,15 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
             <span className="tw-text-xs tw-font-medium tw-px-2 tw-py-0.5 tw-rounded-full tw-bg-purps-100 tw-text-purps-700">
               {stageLabel(localStage)}
             </span>
+            <button
+              onClick={() => setShowTaskForm(true)}
+              className="tw-ml-auto tw-flex tw-items-center tw-gap-1 tw-text-xs tw-font-medium tw-text-purps-500 hover:tw-text-purps-600 tw-px-2 tw-py-0.5 tw-rounded tw-border tw-border-purps-200 hover:tw-bg-purps-50 tw-transition-colors"
+            >
+              <svg className="tw-w-3 tw-h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Task
+            </button>
           </div>
         </div>
 
@@ -665,8 +604,6 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
                     const isCurrent = stage.id === localStage
                     const stageIdx = getStageIndex(stage.id)
                     const isBeforeCurrent = stageIdx < currentStageIndex
-                    const { checked, total } = stageProgress(stage.id)
-                    const effectiveChecklist = getEffectiveChecklist(stage.id)
                     const effectiveTodos = getEffectiveTodos(stage.id)
 
                     return (
@@ -697,20 +634,19 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
                               Current
                             </span>
                           )}
-                          {total > 0 && (
-                            <span className="tw-text-xs tw-px-2 tw-py-0.5 tw-rounded-full tw-bg-grey-100 tw-text-grey-500">
-                              {checked}/{total}
-                            </span>
-                          )}
                         </button>
 
                         {/* Expanded content with icon tabs */}
+                        {isOpen && stage.description && (
+                          <div className="tw-px-4 tw-py-2 tw-bg-grey-50 tw-border-b tw-border-grey-100">
+                            <p className="tw-text-xs tw-text-grey-400 tw-italic">{stage.description}</p>
+                          </div>
+                        )}
                         {isOpen && (() => {
-                          const activeSection = stageSection[stage.id] || 'checklist'
+                          const activeSection = stageSection[stage.id] || 'notes'
                           const hasNotes = !!(localStageNotes[stage.id] || '').trim()
                           const todoCount = effectiveTodos.length
                           const tabs = [
-                            { id: 'checklist', icon: <IconList />, label: 'Checklist', badge: total > 0 ? `${checked}/${total}` : null },
                             { id: 'notes', icon: <IconNote />, label: 'Notes', badge: hasNotes ? '\u2022' : null },
                             { id: 'todos', icon: <IconTodo />, label: 'TODOs', badge: todoCount > 0 ? String(todoCount) : null },
                           ]
@@ -738,45 +674,6 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
                                   </button>
                                 ))}
                               </div>
-
-                              {/* CHECKLIST section */}
-                              {activeSection === 'checklist' && (
-                                <div>
-                                  {effectiveChecklist.length === 0 && (
-                                    <p className="tw-text-xs tw-text-grey-300 tw-italic tw-mb-1">No checklist items</p>
-                                  )}
-                                  {effectiveChecklist.map(item => (
-                                    <div key={item.id} className="tw-flex tw-items-center tw-gap-2.5 tw-py-1">
-                                      <button
-                                        onClick={() => item.isFromDb ? toggleChecklistItem(item.id) : toggleNewChecklistItem(item.tempId)}
-                                        className={`tw-w-4 tw-h-4 tw-rounded tw-border tw-flex tw-items-center tw-justify-center tw-flex-shrink-0 tw-transition-colors ${
-                                          item.is_checked ? 'tw-bg-purps-500 tw-border-purps-500 tw-text-white' : 'tw-border-grey-300 tw-bg-white hover:tw-border-purps-400'
-                                        }`}
-                                      >
-                                        {item.is_checked && <IconCheck size={10} />}
-                                      </button>
-                                      <span className={`tw-text-xs tw-flex-1 ${item.is_checked ? 'tw-text-grey-400 tw-line-through' : 'tw-text-grey-700'}`}>
-                                        {item.item}
-                                      </span>
-                                      {!item.isFromDb && (
-                                        <button onClick={() => removeNewChecklistItem(item.tempId)} className="tw-text-grey-300 hover:tw-text-warningred-500 tw-transition-colors">
-                                          <IconX size={12} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  ))}
-                                  <div className="tw-flex tw-items-center tw-gap-2 tw-mt-2">
-                                    <input
-                                      value={newChecklistInput[stage.id] || ''}
-                                      onChange={(e) => setNewChecklistInput(prev => ({ ...prev, [stage.id]: e.target.value }))}
-                                      onKeyDown={(e) => { if (e.key === 'Enter') addChecklistItem(stage.id) }}
-                                      placeholder="Add item..."
-                                      className={`${inputClass} tw-flex-1 tw-py-1 tw-text-xs`}
-                                    />
-                                    <button onClick={() => addChecklistItem(stage.id)} className="tw-text-purps-500 tw-text-xs tw-font-medium hover:tw-text-purps-600">Add</button>
-                                  </div>
-                                </div>
-                              )}
 
                               {/* NOTES section */}
                               {activeSection === 'notes' && (
@@ -902,6 +799,15 @@ export default function ProjectDetail({ project, onClose, onProjectUpdated }) {
           </div>
         )}
       </div>
+
+      {/* Task form slide-out */}
+      {showTaskForm && (
+        <TaskForm
+          task={null}
+          onSave={handleTaskFormSave}
+          onClose={() => setShowTaskForm(false)}
+        />
+      )}
 
       {/* Slide-in animation */}
       <style jsx>{`

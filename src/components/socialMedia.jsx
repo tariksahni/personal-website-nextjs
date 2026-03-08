@@ -2,7 +2,7 @@
 import React from 'react';
 
 /* Constants */
-import {GITHUB_URL, LINKED_IN_URL, TWITTER_URL, FACEBOOK_URL, WHATSAPP_URL} from 'Constants/index';
+import {GITHUB_URL, LINKED_IN_URL, TWITTER_URL, FACEBOOK_URL, WHATSAPP_URL, INSTAGRAM_URL} from 'Constants/index';
 
 
 const SocialMedia = () => {
@@ -39,10 +39,15 @@ const SocialMedia = () => {
 						<h2>WhatsApp</h2>
 					</a>
 				</li>
+				<li className="icon-box">
+					<i className="fa fa-instagram"/>
+					<a href={INSTAGRAM_URL} target="_blank" rel="noreferrer">
+						<h2>Instagram</h2>
+					</a>
+				</li>
 			</ul>
 		</header>
 	)
 }
 
 export default SocialMedia;
-

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from 'Lib/supabase'
-import { STAGES, DEFAULT_CHECKLIST_ITEMS } from 'Lib/projectDefaults'
+import { STAGES } from 'Lib/projectDefaults'
 
 const inputClass = "tw-bg-white tw-border tw-border-grey-300 tw-rounded-lg tw-px-3 tw-py-2 tw-text-grey-900 tw-text-sm tw-placeholder-grey-400 focus:tw-outline-none focus:tw-border-purps-400 focus:tw-ring-1 focus:tw-ring-purps-100 tw-transition-all"
 const btnPrimary = "tw-bg-purps-500 tw-text-white tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-semibold hover:tw-bg-purps-600 tw-transition-colors"
@@ -77,28 +77,6 @@ export default function CreateProject({ isOpen, onClose, onCreated }) {
         .single()
 
       if (insertError) throw insertError
-
-      const checklistRows = []
-      for (const stage of STAGES) {
-        const items = DEFAULT_CHECKLIST_ITEMS[stage.id] || []
-        items.forEach((item, idx) => {
-          checklistRows.push({
-            project_id: project.id,
-            stage: stage.id,
-            item,
-            sort_order: idx,
-            is_checked: false,
-          })
-        })
-      }
-
-      if (checklistRows.length > 0) {
-        const { error: checklistError } = await supabase
-          .from('project_checklist')
-          .insert(checklistRows)
-
-        if (checklistError) throw checklistError
-      }
 
       onCreated()
       onClose()
