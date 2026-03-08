@@ -1,6 +1,5 @@
 /* Node Dependencies */
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 
 /* Components */
@@ -16,13 +15,13 @@ const HomePage = () => {
               <div className="image-frame" style={{backgroundColor: '#B482F5'}} />
               <div className="content-container">
                   <div className="image-container">
-                      <Image src="/images/Tarik_Shillong.jpg" priority layout='fill' objectFit='cover' alt="Tarik Sahni" title="tarik-sahni" aria-hidden="true"
-                             role="presentation"/>
+                      <img src="/images/Tarik_Shillong.jpg" alt="Tarik Sahni" title="tarik-sahni" aria-hidden="true"
+                             role="presentation" style={{width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0}}/>
                   </div>
                   <div className="home-page-details">
                       <div className="image-container-mobile">
-                          <Image src="/images/Tarik_Shillong.jpg" priority layout='fill' objectFit='cover' alt="Tarik Sahni" title="tarik-sahni" aria-hidden="true"
-                                 role="presentation"/>
+                          <img src="/images/Tarik_Shillong.jpg" alt="Tarik Sahni" title="tarik-sahni" aria-hidden="true"
+                                 role="presentation" style={{width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0}}/>
                       </div>
                       <div className="intro-section">
                           <h6 className="open-sans-font upper-case hi-text fs-3 fw-normal">Hi there ! &#128075; 🇮🇳</h6>
