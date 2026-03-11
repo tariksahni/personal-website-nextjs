@@ -5,6 +5,9 @@ import Link from 'next/link';
 /* Components */
 import SocialMedia from 'Components/socialMedia';
 
+/* Constants */
+import {GITHUB_URL, LINKED_IN_URL, TWITTER_URL, FACEBOOK_URL, WHATSAPP_URL, INSTAGRAM_URL} from 'Constants/index';
+
 const HomePage = () => {
   return (
       <>
@@ -47,6 +50,14 @@ const HomePage = () => {
                                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71,19.5C17.88,20.5 17,21.42 15.66,21.43C14.32,21.45 13.87,20.62 12.35,20.62C10.83,20.62 10.33,21.42 9.05,21.45C7.75,21.48 6.76,20.44 5.92,19.44C4.22,17.39 2.95,13.67 4.71,11.11C5.58,9.84 6.97,9.05 8.46,9.03C9.75,9.01 10.96,9.92 11.74,9.92C12.51,9.92 13.98,8.82 15.56,9C16.23,9.03 17.93,9.27 19.02,10.87C18.9,10.95 16.65,12.27 16.67,15.02C16.7,18.31 19.54,19.35 19.58,19.36C19.55,19.43 19.19,20.57 18.71,19.5ZM13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z"/></svg>
                                   <span>App Store</span>
                               </a>
+                          </div>
+                          <div className="social-inline">
+                              <a href={GITHUB_URL} target="_blank" rel="noreferrer"><i className="fa fa-github-alt"/></a>
+                              <a href={LINKED_IN_URL} target="_blank" rel="noreferrer"><i className="fa fa-linkedin"/></a>
+                              <a href={TWITTER_URL} target="_blank" rel="noreferrer"><i className="fa fa-twitter"/></a>
+                              <a href={FACEBOOK_URL} target="_blank" rel="noreferrer"><i className="fa fa-facebook-f"/></a>
+                              <a href={WHATSAPP_URL} target="_blank" rel="noreferrer"><i className="fa fa-whatsapp"/></a>
+                              <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><i className="fa fa-instagram"/></a>
                           </div>
                       </div>
                   </div>
