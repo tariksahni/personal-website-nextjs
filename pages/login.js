@@ -3,11 +3,17 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { supabase } from 'Lib/supabase'
 
+const DESTINATIONS = [
+  { href: '/dashboard', label: 'Command Center', hint: 'Projects & team dashboard', icon: '📊' },
+  { href: '/wardrobe', label: 'Wardrobe', hint: 'What to wear today', icon: '👕' },
+]
+
 // Only allow same-site relative paths (e.g. "/wardrobe"); blocks "//evil.com" and "/\\evil.com".
+// Returns null when absent/unsafe so the user picks a destination instead.
 function safeNext(value) {
   const next = Array.isArray(value) ? value[0] : value
   if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//') || next.includes('\\')) {
-    return '/dashboard'
+    return null
   }
   return next
 }
@@ -17,15 +23,16 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [signedIn, setSignedIn] = useState(false)
   const router = useRouter()
   const nextPath = safeNext(router.query.next)
 
   useEffect(() => {
     if (!router.isReady) return
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        router.replace(nextPath)
-      }
+      if (!session?.user) return
+      if (nextPath) router.replace(nextPath)
+      else setSignedIn(true)
     })
   }, [router, nextPath])
 
@@ -42,8 +49,11 @@ export default function Login() {
     if (error) {
       setError(error.message)
       setLoading(false)
-    } else {
+    } else if (nextPath) {
       router.push(nextPath)
+    } else {
+      setSignedIn(true)
+      setLoading(false)
     }
   }
 
@@ -55,12 +65,33 @@ export default function Login() {
       <div className="tw-w-full tw-max-w-sm">
         <div className="tw-text-center tw-mb-10">
           <div className="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-bg-purps-20 tw-border tw-border-purps-50 tw-rounded-xl tw-mb-4">
-            <span className="tw-text-purps-500 tw-text-lg tw-font-bold">CC</span>
+            <span className="tw-text-lg" aria-hidden="true">🔒</span>
           </div>
-          <h1 className="tw-text-xl tw-font-semibold tw-text-grey-900">Command Center</h1>
-          <p className="tw-text-sm tw-text-grey-500 tw-mt-1">Sign in to your dashboard</p>
+          <h1 className="tw-text-xl tw-font-semibold tw-text-grey-900">{signedIn ? 'Where to?' : 'Sign in'}</h1>
+          <p className="tw-text-sm tw-text-grey-500 tw-mt-1">{signedIn ? 'Pick where you want to go' : 'Private area'}</p>
         </div>
 
+        {signedIn ? (
+          <div className="tw-space-y-3">
+            {DESTINATIONS.map((d) => (
+              <a
+                key={d.href}
+                href={d.href}
+                onClick={(e) => { e.preventDefault(); router.push(d.href) }}
+                className="tw-flex tw-items-center tw-gap-4 tw-bg-white tw-border tw-border-grey-200 tw-rounded-xl tw-p-4 tw-shadow-sm hover:tw-border-purps-400 tw-transition-all tw-no-underline"
+              >
+                <span className="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-bg-purps-20 tw-rounded-lg">
+                  <span className="tw-text-lg" aria-hidden="true">{d.icon}</span>
+                </span>
+                <span className="tw-flex-1">
+                  <span className="tw-block tw-text-sm tw-font-semibold tw-text-grey-900">{d.label}</span>
+                  <span className="tw-block tw-text-xs tw-text-grey-500">{d.hint}</span>
+                </span>
+                <span className="tw-text-grey-400" aria-hidden="true">›</span>
+              </a>
+            ))}
+          </div>
+        ) : (
         <div className="tw-bg-white tw-border tw-border-grey-200 tw-rounded-xl tw-p-6 tw-shadow-sm">
           <form onSubmit={handleLogin} className="tw-space-y-5">
             <div>
@@ -99,6 +130,7 @@ export default function Login() {
             </button>
           </form>
         </div>
+        )}
       </div>
     </div>
   )
