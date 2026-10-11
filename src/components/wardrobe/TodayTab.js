@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { callFn, localDate } from 'Lib/wardrobe/api'
 import { getSuggestions, getWearLog, logWear } from 'Lib/wardrobe/data'
 import OutfitCard from './OutfitCard'
+import TryOnSheet from './TryOnSheet'
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Spinner, ErrorBanner, Notice, SectionTitle } from './ui'
 
 const SECTIONS = [
@@ -16,7 +17,7 @@ function sameIds(a, b) {
   return b.every((id) => s.has(id))
 }
 
-export default function TodayTab({ items, urls, itemsLoading, onGoToCloset }) {
+export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGoToMe }) {
   const [date, setDate] = useState(() => localDate())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -28,6 +29,7 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset }) {
   const [wearError, setWearError] = useState(null)
   const [specialNote, setSpecialNote] = useState('')
   const [showSpecial, setShowSpecial] = useState(false)
+  const [tryOn, setTryOn] = useState(null) // { outfit, itemIds }
 
   const itemsById = useMemo(() => {
     const m = {}
@@ -131,7 +133,18 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset }) {
           What to wear today
         </h2>
         {wearLog && wearLog.outfit && wearLog.outfit.name && (
-          <p className="tw-mt-2 tw-text-sm tw-text-emerald-700">✓ Logged: {wearLog.outfit.name}</p>
+          <div className="tw-mt-2 tw-flex tw-items-center tw-gap-3">
+            <p className="tw-text-sm tw-text-emerald-700">✓ Logged: {wearLog.outfit.name}</p>
+            {(wearLog.item_ids || []).some((x) => itemsById[x]) && (
+              <button
+                type="button"
+                onClick={() => setTryOn({ outfit: wearLog.outfit, itemIds: wearLog.item_ids.filter((x) => itemsById[x]) })}
+                className="tw-m-0 tw-p-0 tw-border-0 tw-bg-transparent active:tw-bg-transparent focus:tw-border-0 tw-text-sm tw-font-medium tw-text-stone-900 tw-underline tw-cursor-pointer"
+              >
+                Try it on
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -186,6 +199,7 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset }) {
                 busy={wearing === `${id}:${i}`}
                 disabled={!!wearing}
                 onWear={() => wear(id, outfit, i)}
+                onTryOn={(itemIds) => setTryOn({ outfit, itemIds })}
               />
             )}
           />
@@ -250,8 +264,18 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset }) {
               busy={wearing === `special:${i}`}
               disabled={!!wearing}
               onWear={() => wear('special', outfit, i)}
+              onTryOn={(itemIds) => setTryOn({ outfit, itemIds })}
             />
           )}
+        />
+      )}
+
+      {tryOn && (
+        <TryOnSheet
+          outfit={tryOn.outfit}
+          itemIds={tryOn.itemIds}
+          onClose={() => setTryOn(null)}
+          onGoToMe={onGoToMe || (() => {})}
         />
       )}
     </div>

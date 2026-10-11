@@ -6,7 +6,7 @@ const ORDER = ['outerwear', 'top', 'bottom', 'shoes', 'accessory']
  * One suggested outfit: thumbnails, name, reason, "Wearing this".
  * `itemsById` resolves outfit.item_ids against the loaded closet; ids of deleted items are skipped.
  */
-export default function OutfitCard({ outfit, itemsById, urls, worn, wornOther, busy, disabled, onWear }) {
+export default function OutfitCard({ outfit, itemsById, urls, worn, wornOther, busy, disabled, onWear, onTryOn }) {
   const pieces = (outfit.item_ids || [])
     .map((id) => itemsById[id])
     .filter(Boolean)
@@ -51,7 +51,12 @@ export default function OutfitCard({ outfit, itemsById, urls, worn, wornOther, b
         </p>
       )}
 
-      <div className="tw-mt-3">
+      <div className="tw-mt-3 tw-space-y-2">
+        {onTryOn && pieces.length > 0 && (
+          <button type="button" onClick={() => onTryOn(pieces.map((it) => it.id))} className={`${BTN_SECONDARY} tw-w-full`}>
+            <span aria-hidden>✧</span> Try it on
+          </button>
+        )}
         {worn ? (
           <div className="tw-flex tw-min-h-[44px] tw-items-center tw-justify-center tw-gap-2 tw-rounded-xl tw-bg-emerald-600 tw-text-[15px] tw-font-medium tw-text-white">
             <span aria-hidden>✓</span> Wearing today

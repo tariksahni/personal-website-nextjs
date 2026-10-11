@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { resizeImage } from 'Lib/wardrobe/image'
 import { callFn } from 'Lib/wardrobe/api'
 import { getProfile, saveProfile } from 'Lib/wardrobe/data'
+import TryOnPhoto from './TryOnPhoto'
+import MyLooks from './MyLooks'
+// TEMP: test image button — remove after dashboard check
+import TestImage from './TestImage'
 import { BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, INPUT, LABEL, CARD, Spinner, ErrorBanner, SectionTitle } from './ui'
 
 export default function MeTab() {
@@ -96,7 +100,9 @@ export default function MeTab() {
   const canGenerate = !!photo || !!notes.trim()
 
   return (
-    <div className="tw-space-y-6">
+    <div className="tw-space-y-8">
+      <TryOnPhoto />
+
       <section>
         <SectionTitle>About you</SectionTitle>
         <p className="tw-mb-4 tw-text-sm tw-leading-relaxed tw-text-stone-500">
@@ -133,7 +139,7 @@ export default function MeTab() {
 
           <div className="tw-flex tw-items-start tw-gap-2 tw-rounded-xl tw-bg-emerald-50 tw-px-3 tw-py-2.5 tw-text-xs tw-leading-snug tw-text-emerald-900">
             <span aria-hidden>🔒</span>
-            <span>Your photo is not stored. It is only sent once to generate the text below; just the text is saved.</span>
+            <span>This photo is only used once to write the text below and is not saved here. Your try-on photo (above) is stored privately and only used for try-on — it is sent to OpenAI when you tap “Try it on”.</span>
           </div>
 
           <div>
@@ -181,6 +187,11 @@ export default function MeTab() {
           {busy === 'save' ? <Spinner light className="tw-w-4 tw-h-4" /> : dirty ? 'Save profile' : 'Saved'}
         </button>
       </section>
+
+      <MyLooks />
+
+      {/* TEMP: test image button — remove after dashboard check */}
+      <TestImage />
     </div>
   )
 }

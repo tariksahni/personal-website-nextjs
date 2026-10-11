@@ -113,7 +113,7 @@ export default function Wardrobe() {
           </div>
         )}
         {tab === 'today' && (
-          <TodayTab items={items} urls={urls} itemsLoading={itemsLoading} onGoToCloset={() => selectTab('closet')} />
+          <TodayTab items={items} urls={urls} itemsLoading={itemsLoading} onGoToCloset={() => selectTab('closet')} onGoToMe={() => selectTab('me')} />
         )}
         {tab === 'closet' && (
           <ClosetTab items={items} urls={urls} loading={itemsLoading} onItemsChange={setItems} />
