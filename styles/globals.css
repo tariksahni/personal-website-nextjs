@@ -1092,3 +1092,43 @@ body{
 .ml-1{
   margin-left: 1em;
 }
+
+/* Wardrobe app (/wardrobe): scoped mini-preflight, since Tailwind preflight is off.
+   Selectors keep element-level specificity via :where() so tw- utilities always win; placed last so it beats the
+   bare element rules above (input/button/select/textarea). */
+:where(.wardrobe-root) *,
+:where(.wardrobe-root) *::before,
+:where(.wardrobe-root) *::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: #e7e5e4;
+}
+:where(.wardrobe-root) button,
+:where(.wardrobe-root) input,
+:where(.wardrobe-root) select,
+:where(.wardrobe-root) textarea {
+  margin: 0;
+  padding: 0;
+  border: 0 solid #e7e5e4;
+  font: inherit;
+  color: inherit;
+  background-color: transparent;
+  border-radius: 0;
+  line-height: inherit;
+}
+:where(.wardrobe-root) button,
+:where(.wardrobe-root) label[for] {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+:where(.wardrobe-root) img {
+  display: block;
+  max-width: 100%;
+}
+:where(.wardrobe-root) h1,
+:where(.wardrobe-root) h2,
+:where(.wardrobe-root) h3,
+:where(.wardrobe-root) p {
+  margin: 0;
+}

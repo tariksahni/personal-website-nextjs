@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
+import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { supabase } from 'Lib/supabase'
+
+// Only allow same-site relative paths (e.g. "/wardrobe"); blocks "//evil.com" and "/\\evil.com".
+function safeNext(value) {
+  const next = Array.isArray(value) ? value[0] : value
+  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//') || next.includes('\\')) {
+    return '/dashboard'
+  }
+  return next
+}
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -8,14 +18,16 @@ export default function Login() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const nextPath = safeNext(router.query.next)
 
   useEffect(() => {
+    if (!router.isReady) return
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        router.replace('/dashboard')
+        router.replace(nextPath)
       }
     })
-  }, [router])
+  }, [router, nextPath])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -31,12 +43,15 @@ export default function Login() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/dashboard')
+      router.push(nextPath)
     }
   }
 
   return (
     <div className="tw-min-h-screen tw-bg-grey-50 tw-flex tw-items-center tw-justify-center tw-p-4" style={{ fontSize: '15px' }}>
+      <Head>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
       <div className="tw-w-full tw-max-w-sm">
         <div className="tw-text-center tw-mb-10">
           <div className="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-bg-purps-20 tw-border tw-border-purps-50 tw-rounded-xl tw-mb-4">
