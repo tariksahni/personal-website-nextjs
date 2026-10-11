@@ -18,9 +18,10 @@ function messageFor(status, serverMessage) {
   }
   if (status === 413) return serverMessage || 'That image is too large. Please try a smaller one.'
   if (status === 422) return serverMessage || "Couldn't process that request."
-  if (status === 502 || status === 504) {
+  if (status === 504) {
     return serverMessage || 'The stylist took too long to answer. Please try again.'
   }
+  if (status === 502) return serverMessage || 'The wardrobe service crashed. Please try again.'
   if (status >= 500) return serverMessage || 'Something went wrong on the server. Please try again.'
   return serverMessage || `Request failed (${status}).`
 }

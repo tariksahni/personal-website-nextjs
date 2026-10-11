@@ -21,4 +21,5 @@
   ## more info on configuring this file: https://www.netlify.com/docs/netlify-toml-reference/
 
 [functions]
-  node_bundler = "esbuild"
+  # Default bundler (zisi). esbuild dropped the shared _lib helpers from the bundle.
+  included_files = ["netlify/functions/_lib/**"]
