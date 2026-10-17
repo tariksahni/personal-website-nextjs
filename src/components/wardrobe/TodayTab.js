@@ -29,6 +29,26 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
   const [wearError, setWearError] = useState(null)
   const [specialNote, setSpecialNote] = useState('')
   const [showSpecial, setShowSpecial] = useState(false)
+  const [includeJacket, setIncludeJacket] = useState(false)
+
+  // Remember the jacket choice on this device (best effort).
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem('wardrobe.includeJacket') === '1') setIncludeJacket(true)
+    } catch (e) {
+      // storage unavailable
+    }
+  }, [])
+  const toggleJacket = () => {
+    setIncludeJacket((v) => {
+      try {
+        window.localStorage.setItem('wardrobe.includeJacket', v ? '0' : '1')
+      } catch (e) {
+        // storage unavailable
+      }
+      return !v
+    })
+  }
   const [tryOn, setTryOn] = useState(null) // { outfit, itemIds }
 
   const itemsById = useMemo(() => {
@@ -74,7 +94,7 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
     setPending((p) => ({ ...p, [occasion]: true }))
     setErrors((e) => ({ ...e, [occasion]: null }))
     try {
-      const body = { occasion, date }
+      const body = { occasion, date, includeJacket }
       if (occasion === 'special') body.specialNote = note
       const payload = await callFn('wardrobe-suggest', body, { timeoutMs: 60000 })
       setSuggestions((s) => ({ ...s, [occasion]: payload }))
@@ -165,6 +185,23 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
 
       {closetReady && (
         <div className="tw-grid tw-grid-cols-1 tw-gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={includeJacket}
+            onClick={toggleJacket}
+            className="tw-flex tw-w-full tw-min-h-[44px] tw-items-center tw-justify-between tw-m-0 tw-px-1 tw-py-0 tw-border-0 tw-bg-transparent active:tw-bg-transparent focus:tw-border-0 tw-text-left tw-cursor-pointer"
+          >
+            <span className="tw-text-[15px] tw-text-stone-800">Include a jacket</span>
+            <span
+              aria-hidden
+              className={`tw-relative tw-inline-block tw-h-7 tw-w-12 tw-rounded-full tw-transition-colors ${includeJacket ? 'tw-bg-stone-900' : 'tw-bg-stone-300'}`}
+            >
+              <span
+                className={`tw-absolute tw-top-0.5 tw-h-6 tw-w-6 tw-rounded-full tw-bg-white tw-shadow tw-transition-all ${includeJacket ? 'tw-left-[22px]' : 'tw-left-0.5'}`}
+              />
+            </span>
+          </button>
           <button type="button" onClick={suggestBoth} disabled={mainPending} className={`${hasMain ? BTN_SECONDARY : BTN_PRIMARY} tw-w-full`}>
             {mainPending ? <Spinner light={!hasMain} className="tw-w-4 tw-h-4" /> : <span aria-hidden>{hasMain ? '↻' : '✦'}</span>}
             {mainPending ? 'Styling…' : hasMain ? 'Refresh suggestions' : 'Suggest outfits'}
@@ -231,7 +268,8 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
                 maxLength={300}
                 onChange={(e) => setSpecialNote(e.target.value)}
                 placeholder="e.g. friend's beach wedding, evening"
-                className={`${INPUT} tw-border-stone-700 focus:tw-border-white focus:tw-ring-white tw-bg-stone-800 tw-text-white tw-placeholder-stone-500`}
+                className={INPUT}
+                style={{ color: '#1c1917', WebkitTextFillColor: '#1c1917', backgroundColor: '#fff' }}
               />
               <button
                 type="submit"

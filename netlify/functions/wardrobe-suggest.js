@@ -105,9 +105,10 @@ function applyTopCooldown(items, wearLog, date) {
 }
 
 // Keeps only outfits made of known ids that satisfy the category rules.
-function validateOutfits(rawOutfits, allowed) {
+function validateOutfits(rawOutfits, allowed, requireJacket = false) {
   const byId = new Map(allowed.map((i) => [i.id, i]))
   const hasShoes = allowed.some((i) => i.category === 'shoes')
+  const needJacket = requireJacket && allowed.some((i) => i.category === 'outerwear')
   const seen = new Set()
   const out = []
   for (const o of Array.isArray(rawOutfits) ? rawOutfits : []) {
@@ -117,6 +118,7 @@ function validateOutfits(rawOutfits, allowed) {
     if (count('top') !== 1 || count('bottom') !== 1) continue
     if (hasShoes ? count('shoes') !== 1 : count('shoes') > 0) continue
     if (count('outerwear') > 1 || count('accessory') > 2) continue
+    if (needJacket && count('outerwear') !== 1) continue
     const key = [...ids].sort().join(',')
     if (seen.has(key)) continue
     seen.add(key)
@@ -142,7 +144,7 @@ function compactItem(i) {
 
 const SYSTEM = `You are a personal stylist choosing outfits from the user's own closet.
 Reply with ONLY a JSON object: {"outfits":[{"name":string,"item_ids":[string],"reason":string}]} with exactly 3 different outfits.
-Rules: use only ids from the closet list; each outfit has exactly one "top" and exactly one "bottom", exactly one "shoes" item if any shoes exist, and optionally one "outerwear" item (jacket, blazer, overshirt, coat) — include one when it suits the occasion or adds polish — and up to two "accessory" items.
+Rules: use only ids from the closet list; each outfit has exactly one "top" and exactly one "bottom", exactly one "shoes" item if any shoes exist, follow the jacket rule given in the request for "outerwear" items, and up to two "accessory" items.
 Prefer varied tops across the 3 outfits, coherent colours and formality for the occasion, and avoid repeating recent full outfits.
 name: 2-4 words. reason: one short sentence (max 20 words) on why it works.`
 
@@ -156,6 +158,7 @@ exports.handler = withHandler(async (event) => {
   if (!validDate(date)) throw new HttpError(400, 'date must be YYYY-MM-DD.')
   const specialNote = typeof body.specialNote === 'string' ? body.specialNote.trim().slice(0, 300) : ''
   if (occasion === 'special' && !specialNote) throw new HttpError(400, 'Describe the special day first.')
+  const includeJacket = body.includeJacket === true
 
   const rest = restClient(auth)
   const since = addDays(date, -HISTORY_DAYS)
@@ -169,7 +172,14 @@ exports.handler = withHandler(async (event) => {
     throw new HttpError(422, 'Add at least one top and one bottom to your closet first.')
   }
 
-  const { allowed, cooldownRelaxed } = applyTopCooldown(items, wearLog, date)
+  const cooled = applyTopCooldown(items, wearLog, date)
+  const cooldownRelaxed = cooled.cooldownRelaxed
+  // Jackets only when asked for: drop outerwear from the candidates otherwise.
+  const allowed = includeJacket ? cooled.allowed : cooled.allowed.filter((i) => i.category !== 'outerwear')
+  const hasJackets = allowed.some((i) => i.category === 'outerwear')
+  const jacketRule = includeJacket && hasJackets
+    ? 'Jacket rule: every outfit must include exactly one "outerwear" item (jacket, blazer, overshirt or coat).'
+    : 'Jacket rule: do not include any "outerwear" item.'
   const profile = profiles[0] || {}
   const recent = wearLog
     .filter((r) => r.worn_on < date)
@@ -179,6 +189,7 @@ exports.handler = withHandler(async (event) => {
   const prompt = [
     `Occasion: ${OCCASION_TEXT[occasion]}.`,
     specialNote ? `Special day details: ${specialNote}` : '',
+    jacketRule,
     profile.profile_text ? `About me: ${profile.profile_text}` : '',
     profile.notes ? `My notes: ${profile.notes}` : '',
     recent.length ? `Recently worn (date: item ids):\n${recent.join('\n')}` : '',
@@ -190,13 +201,14 @@ exports.handler = withHandler(async (event) => {
 
   const text = await callModel({ system: SYSTEM, content: prompt, maxTokens: 4000, effort: 'low', json: true })
   const parsed = extractJson(text)
-  const outfits = validateOutfits(parsed && parsed.outfits, allowed)
+  const outfits = validateOutfits(parsed && parsed.outfits, allowed, includeJacket)
   if (!outfits.length) throw new HttpError(502, "Couldn't put together valid outfits. Please try again.")
 
   const payload = {
     occasion,
     date,
     specialNote: specialNote || null,
+    includeJacket,
     outfits,
     cooldownRelaxed,
     generatedAt: new Date().toISOString(),
