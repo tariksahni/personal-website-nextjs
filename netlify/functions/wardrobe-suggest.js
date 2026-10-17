@@ -142,7 +142,7 @@ function compactItem(i) {
 
 const SYSTEM = `You are a personal stylist choosing outfits from the user's own closet.
 Reply with ONLY a JSON object: {"outfits":[{"name":string,"item_ids":[string],"reason":string}]} with exactly 3 different outfits.
-Rules: use only ids from the closet list; each outfit has exactly one "top" and exactly one "bottom", exactly one "shoes" item if any shoes exist, and optionally one "outerwear" and up to two "accessory" items.
+Rules: use only ids from the closet list; each outfit has exactly one "top" and exactly one "bottom", exactly one "shoes" item if any shoes exist, and optionally one "outerwear" item (jacket, blazer, overshirt, coat) — include one when it suits the occasion or adds polish — and up to two "accessory" items.
 Prefer varied tops across the 3 outfits, coherent colours and formality for the occasion, and avoid repeating recent full outfits.
 name: 2-4 words. reason: one short sentence (max 20 words) on why it works.`
 

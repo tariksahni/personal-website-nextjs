@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { resizeImage } from 'Lib/wardrobe/image'
 import { callFn } from 'Lib/wardrobe/api'
-import { uploadImage, insertItem } from 'Lib/wardrobe/data'
+import { uploadImage, insertItem, deleteItem } from 'Lib/wardrobe/data'
 import ItemCard from './ItemCard'
 import ItemEditor from './ItemEditor'
 import { BTN_PRIMARY, BTN_SECONDARY, BTN_BASE, Spinner, ErrorBanner } from './ui'
@@ -11,7 +11,7 @@ const FILTERS = [
   { id: 'top', label: 'Tops' },
   { id: 'bottom', label: 'Bottoms' },
   { id: 'shoes', label: 'Shoes' },
-  { id: 'outerwear', label: 'Outerwear' },
+  { id: 'outerwear', label: 'Jackets' },
   { id: 'accessory', label: 'Accessories' },
   { id: 'untagged', label: 'Needs tags' },
 ]
@@ -170,7 +170,16 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
       ) : (
         <div className="tw-grid tw-grid-cols-3 tw-gap-x-3 tw-gap-y-4">
           {visible.map((item) => (
-            <ItemCard key={item.id} item={item} url={urls[item.image_path]} onClick={() => setEditing(item)} />
+            <ItemCard
+              key={item.id}
+              item={item}
+              url={urls[item.image_path]}
+              onClick={() => setEditing(item)}
+              onDelete={async () => {
+                await deleteItem(item)
+                onItemsChange((prev) => prev.filter((it) => it.id !== item.id))
+              }}
+            />
           ))}
         </div>
       )}

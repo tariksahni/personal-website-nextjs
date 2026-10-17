@@ -98,7 +98,7 @@ export const CATEGORY_LABEL = {
   top: 'Top',
   bottom: 'Bottom',
   shoes: 'Shoes',
-  outerwear: 'Outerwear',
+  outerwear: 'Jacket / outerwear',
   accessory: 'Accessory',
 }
 
