@@ -17,12 +17,18 @@ function getBearerToken(event) {
   return match ? match[1].trim() : null
 }
 
+function maskEmail(email) {
+  const [name, domain] = email.split('@')
+  if (!name || !domain) return 'an account without an email'
+  return `${name.slice(0, 2)}${'*'.repeat(Math.max(1, name.length - 2))}@${domain}`
+}
+
 // Returns { user, token, supabaseUrl, anonKey } or throws HttpError.
 async function requireOwner(event) {
   const token = getBearerToken(event)
   if (!token) throw new HttpError(401, 'Not signed in.')
 
-  const ownerEmail = (process.env.WARDROBE_OWNER_EMAIL || '').trim().toLowerCase()
+  const ownerEmail = (process.env.WARDROBE_OWNER_EMAIL || '').trim().replace(/^["']|["']$/g, '').trim().toLowerCase()
   const { url, anonKey } = supabaseConfig()
 
   let res
@@ -43,8 +49,13 @@ async function requireOwner(event) {
 
   // Deny everyone if the owner isn't configured (avoids spending API credits for strangers).
   if (!ownerEmail) throw new HttpError(500, 'Server not configured: WARDROBE_OWNER_EMAIL is not set.')
-  if ((user.email || '').toLowerCase() !== ownerEmail) {
-    throw new HttpError(403, 'This wardrobe is private.')
+  const email = (user.email || '').trim().toLowerCase()
+  if (email !== ownerEmail) {
+    // Shown only to the signed-in user: their own (masked) email, so a mismatch is easy to spot.
+    throw new HttpError(
+      403,
+      `This wardrobe is private. You're signed in as ${maskEmail(email)}, which doesn't match WARDROBE_OWNER_EMAIL in Netlify.`
+    )
   }
 
   return { user, token, supabaseUrl: url, anonKey }
