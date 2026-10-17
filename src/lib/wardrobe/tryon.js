@@ -1,4 +1,4 @@
-// Virtual try-on (client side). Storage layout in the private "wardrobe" bucket:
+// Virtual try-on (client side). Storage layout in the private "wardrobe" bucket ({uid} = getOwnerId()):
 //   {uid}/me/photo.jpg                owner photo
 //   {uid}/tryons/{key}.png            generated look
 //   {uid}/tryons/{key}.error.json     last failure message
@@ -6,7 +6,7 @@
 // key must match netlify/functions/_lib/tryon.js → tryOnKey().
 import { supabase } from 'Lib/supabase'
 import { callFn, ApiError } from './api'
-import { BUCKET, getUserId } from './data'
+import { BUCKET, getOwnerId } from './data'
 
 const PHOTO_NAME = 'photo.jpg'
 const URL_TTL = 3600
@@ -41,7 +41,7 @@ export async function tryOnKey(itemIds) {
 
 /** Returns { path, url, updatedAt } or null if no photo is stored. */
 export async function getOwnerPhoto() {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const { data, error } = await bucket().list(`${uid}/me`, { search: PHOTO_NAME, limit: 10 })
   if (error) throw fail(error, 'Could not check your photo.')
   const obj = (data || []).find((o) => o.name === PHOTO_NAME)
@@ -51,7 +51,7 @@ export async function getOwnerPhoto() {
 }
 
 export async function uploadOwnerPhoto(blob) {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const path = `${uid}/me/${PHOTO_NAME}`
   const { error } = await bucket().upload(path, blob, { contentType: 'image/jpeg', cacheControl: '60', upsert: true })
   if (error) throw fail(error, 'Could not save your photo.')
@@ -59,7 +59,7 @@ export async function uploadOwnerPhoto(blob) {
 }
 
 export async function deleteOwnerPhoto() {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const { error } = await bucket().remove([`${uid}/me/${PHOTO_NAME}`])
   if (error) throw fail(error, 'Could not delete your photo.')
 }
@@ -78,7 +78,7 @@ const stamp = (o) => (o ? o.updated_at || o.created_at || '' : '')
 
 /** Cached look for these items. Also reports an in-flight generation (pending). */
 export async function findLook(itemIds) {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const key = await tryOnKey(itemIds)
   const s = await lookStatus(uid, key)
   const pendingFresh = !!s.pending && Date.now() - Date.parse(stamp(s.pending)) < PENDING_STALE_MS
@@ -95,7 +95,7 @@ function sleep(ms) {
 
 /** Polls wardrobe-tryon-status every 4s (up to ~3 min) until the look is done or failed. */
 async function pollStatus(key, isCancelled) {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const deadline = Date.now() + POLL_MAX_MS
   let transientErrors = 0
   while (Date.now() < deadline) {
@@ -143,7 +143,7 @@ export async function generateTestImage({ isCancelled } = {}) {
 
 /** All saved looks, newest first: [{ key, path, url, updatedAt }]. */
 export async function listLooks() {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const { data, error } = await bucket().list(`${uid}/tryons`, {
     limit: 200,
     sortBy: { column: 'updated_at', order: 'desc' },
@@ -167,7 +167,7 @@ export async function listLooks() {
 }
 
 export async function deleteLook(key) {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const dir = `${uid}/tryons/${key}`
   const { error } = await bucket().remove([`${dir}.png`, `${dir}.error.json`, `${dir}.pending.json`])
   if (error) throw fail(error, 'Could not delete the look.')

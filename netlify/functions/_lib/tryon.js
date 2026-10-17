@@ -229,7 +229,7 @@ async function saveError(store, p, code, message) {
 async function start(session, body) {
   requireOpenAIKey()
   const { mode, ids, key } = validateStartBody(body)
-  const uid = session.user.id
+  const uid = session.ownerId || session.user.id // shared wardrobe: owner's folder
   const store = storageClient(session)
   const p = paths(uid, key)
 
@@ -346,7 +346,7 @@ async function status(session, body) {
   requireOpenAIKey()
   const key = typeof body.key === 'string' ? body.key.trim().toLowerCase() : ''
   if (!KEY_RE.test(key)) throw new HttpError(400, 'Invalid try-on key.')
-  const uid = session.user.id
+  const uid = session.ownerId || session.user.id // shared wardrobe: owner's folder
   const store = storageClient(session)
   const p = paths(uid, key)
 

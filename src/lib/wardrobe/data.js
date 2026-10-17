@@ -1,4 +1,4 @@
-// Direct Supabase access for the wardrobe app (browser, user session; RLS = own rows only).
+// Direct Supabase access for the wardrobe app (browser, user session; RLS = owner's rows; see getOwnerId).
 // Tables/bucket are defined in supabase/004-wardrobe.sql.
 import { supabase } from 'Lib/supabase'
 
@@ -47,6 +47,35 @@ export async function getUserId() {
   return id
 }
 
+// Shared wardrobe (supabase/005-wardrobe-shared.sql): a linked member account uses the owner's
+// rows and "<owner_id>/..." storage folder. Cached per signed-in user; falls back to the session
+// user id if the RPC is missing (005 not run) or errors (fallback is not cached).
+let ownerCache = { userId: null, promise: null }
+
+export function clearOwnerIdCache() {
+  ownerCache = { userId: null, promise: null }
+}
+
+if (typeof window !== 'undefined' && supabase && supabase.auth && supabase.auth.onAuthStateChange) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    const id = session && session.user ? session.user.id : null
+    if (id !== ownerCache.userId) clearOwnerIdCache()
+  })
+}
+
+export async function getOwnerId() {
+  const userId = await getUserId()
+  if (ownerCache.userId === userId && ownerCache.promise) return ownerCache.promise
+  const promise = Promise.resolve()
+    .then(() => supabase.rpc('wardrobe_owner'))
+    .then(({ data, error }) => (!error && typeof data === 'string' && data ? data : userId))
+    .catch(() => userId)
+  ownerCache = { userId, promise }
+  const ownerId = await promise
+  if (ownerId === userId && ownerCache.promise === promise) ownerCache = { userId, promise: null }
+  return ownerId
+}
+
 // ---------------------------------------------------------------- items
 
 export async function listItems() {
@@ -57,7 +86,7 @@ export async function listItems() {
 
 /** Uploads a JPEG blob to wardrobe/{uid}/{uuid}.jpg and returns the object path. */
 export async function uploadImage(blob) {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const path = `${uid}/${uuid()}.jpg`
   unwrap(
     await supabase.storage.from(BUCKET).upload(path, blob, {
@@ -86,7 +115,7 @@ function pickItemFields(src) {
 
 /** Insert a closet item. `tags` may be null (tagging failed → "Needs tags"). */
 export async function insertItem(imagePath, tags) {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   const row = {
     user_id: uid,
     image_path: imagePath,
@@ -153,7 +182,7 @@ export async function getProfile() {
 }
 
 export async function saveProfile({ profileText, notes }) {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   return unwrap(
     await supabase
       .from('wardrobe_profile')
@@ -179,7 +208,7 @@ export async function getWearLog(date) {
 
 /** One logged outfit per day: re-logging replaces today's entry. */
 export async function logWear({ date, occasion, outfit }) {
-  const uid = await getUserId()
+  const uid = await getOwnerId()
   return unwrap(
     await supabase
       .from('wardrobe_wear_log')

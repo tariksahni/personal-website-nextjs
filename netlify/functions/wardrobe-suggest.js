@@ -203,7 +203,7 @@ exports.handler = withHandler(async (event) => {
   }
   const saved = await rest.upsert(
     'wardrobe_suggestions',
-    { user_id: auth.user.id, for_date: date, occasion, payload, created_at: payload.generatedAt },
+    { user_id: auth.ownerId, for_date: date, occasion, payload, created_at: payload.generatedAt },
     'user_id,for_date,occasion'
   )
   return { ...payload, saved }
