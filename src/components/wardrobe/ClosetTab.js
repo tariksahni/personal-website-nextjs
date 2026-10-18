@@ -47,6 +47,7 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
   const [filter, setFilter] = useState('all')
   const [progress, setProgress] = useState(null) // { index, total, step }
   const [errors, setErrors] = useState([])
+  const [done, setDone] = useState(null) // { ok, failed } after a re-tag run
   const [editing, setEditing] = useState(null)
   const galleryRef = useRef(null)
   const cameraRef = useRef(null)
@@ -84,6 +85,7 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
     )
     if (!ok) return
     setErrors([])
+    setDone(null)
     const problems = []
     for (let i = 0; i < targets.length; i += 1) {
       const it = targets[i]
@@ -107,6 +109,7 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
     }
     setProgress(null)
     setErrors(problems)
+    setDone({ ok: targets.length - problems.length, failed: problems.length })
   }
 
   const onPick = (e) => {
@@ -164,6 +167,27 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
               style={{ width: `${Math.round(((progress.index + 0.5) / progress.total) * 100)}%` }}
             />
           </div>
+        </div>
+      )}
+
+      {done && (
+        <div
+          role="status"
+          className="tw-flex tw-items-center tw-gap-3 tw-rounded-xl tw-border tw-border-solid tw-border-emerald-200 tw-bg-emerald-50 tw-px-4 tw-py-3 tw-text-sm tw-text-emerald-900"
+        >
+          <span aria-hidden>✓</span>
+          <span className="tw-flex-1">
+            Re-tagging done: {done.ok} item{done.ok === 1 ? '' : 's'} updated
+            {done.failed ? `, ${done.failed} failed (see below — tap Re-tag again to retry)` : ''}.
+          </span>
+          <button
+            type="button"
+            onClick={() => setDone(null)}
+            aria-label="Dismiss"
+            className="tw-m-0 tw-p-0 tw-border-0 tw-bg-transparent active:tw-bg-transparent focus:tw-border-0 tw-text-lg tw-leading-none tw-text-emerald-700 tw-cursor-pointer"
+          >
+            ×
+          </button>
         </div>
       )}
 
