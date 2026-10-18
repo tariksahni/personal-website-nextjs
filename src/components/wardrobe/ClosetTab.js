@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { resizeImage } from 'Lib/wardrobe/image'
 import { callFn } from 'Lib/wardrobe/api'
-import { uploadImage, insertItem, deleteItem } from 'Lib/wardrobe/data'
+import { uploadImage, insertItem, deleteItem, downloadImage, updateItem } from 'Lib/wardrobe/data'
 import ItemCard from './ItemCard'
 import ItemEditor from './ItemEditor'
 import { BTN_PRIMARY, BTN_SECONDARY, BTN_BASE, Spinner, ErrorBanner } from './ui'
@@ -68,6 +68,37 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
     setErrors(problems)
   }
 
+  // Re-run AI tagging on existing items (e.g. after tagging got more precise). Overwrites tags.
+  const retagAll = async () => {
+    const targets = visible
+    if (!targets.length) return
+    const ok = window.confirm(
+      `Re-tag ${targets.length} item${targets.length === 1 ? '' : 's'} with AI? This replaces their current tags (including manual edits) and costs about ₹${Math.max(1, Math.round(targets.length * 0.3))}.`
+    )
+    if (!ok) return
+    setErrors([])
+    const problems = []
+    for (let i = 0; i < targets.length; i += 1) {
+      const it = targets[i]
+      setProgress({ index: i, total: targets.length, step: 'Re-tagging', verb: 'Re-tagging' })
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const blob = await downloadImage(it.image_path)
+        // eslint-disable-next-line no-await-in-loop
+        const { base64, mediaType } = await resizeImage(blob)
+        // eslint-disable-next-line no-await-in-loop
+        const { tags } = await callFn('wardrobe-tag', { imageBase64: base64, mediaType })
+        // eslint-disable-next-line no-await-in-loop
+        const updated = await updateItem(it.id, tags)
+        onItemsChange((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+      } catch (e) {
+        problems.push(`${it.subcategory || 'Item'}: ${e.message}`)
+      }
+    }
+    setProgress(null)
+    setErrors(problems)
+  }
+
   const onPick = (e) => {
     const files = e.target.files
     handleFiles(files)
@@ -113,8 +144,8 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
           <div className="tw-flex tw-items-center tw-gap-3">
             <Spinner />
             <p className="tw-flex-1 tw-text-sm tw-text-stone-700">
-              {progress.total > 1 ? `Adding ${progress.index + 1} of ${progress.total} · ` : ''}
-              {progress.step}…
+              {progress.total > 1 ? `${progress.verb || 'Adding'} ${progress.index + 1} of ${progress.total}` : progress.step}
+              {progress.total > 1 && !progress.verb ? ` · ${progress.step}` : ''}…
             </p>
           </div>
           <div className="tw-mt-3 tw-h-1.5 tw-overflow-hidden tw-rounded-full tw-bg-stone-100">
@@ -153,6 +184,18 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {items.length > 0 && !busy && (
+        <div className="tw-flex tw-justify-end">
+          <button
+            type="button"
+            onClick={retagAll}
+            className="tw-m-0 tw-p-0 tw-border-0 tw-bg-transparent active:tw-bg-transparent focus:tw-border-0 tw-text-sm tw-font-medium tw-text-stone-600 tw-underline tw-cursor-pointer"
+          >
+            ↻ Re-tag {activeFilter === 'all' ? 'all' : 'these'} ({visible.length})
+          </button>
         </div>
       )}
 

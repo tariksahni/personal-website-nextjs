@@ -26,12 +26,17 @@ const MAX_BASE64_LEN = 5 * 1024 * 1024 // ~3.7MB decoded
 const SYSTEM = `You tag clothing photos for a personal wardrobe app.
 Reply with ONLY a JSON object, no prose, with keys:
 category: one of ${CATEGORIES.join(', ')} (dresses/suits count as "top"; jackets, blazers, coats, hoodies worn over a top are "outerwear"),
-subcategory: short noun phrase (e.g. "oxford shirt", "chinos", "white sneakers"),
+subcategory: precise short noun phrase that names the construction detail that matters for styling:
+  - tops: ALWAYS name the collar/neckline: "mandarin collar" (band / Chinese / Nehru collar — a short stand-up band with no fold-down points), "spread collar", "button-down collar", "cuban collar" (camp collar), "polo collar", "crew neck", "v-neck", "henley", "turtleneck", "hooded"; then the garment, and "short-sleeve" if so. e.g. "mandarin collar linen shirt", "short-sleeve cuban collar shirt", "crew neck t-shirt", "mandarin collar kurta".
+  - bottoms: ALWAYS name the exact type, never just "pants": "jeans" (any denim), "chinos" (cotton twill, slanted pockets), "trousers" (tailored / formal, often creased), "joggers", "cargo pants", "shorts"; add fit/wash if visible. e.g. "slim dark-wash jeans", "straight beige chinos", "grey formal trousers".
+  - outerwear: e.g. "navy blazer", "denim jacket", "bomber jacket", "overshirt", "puffer jacket".
+  - shoes: e.g. "white sneakers", "brown loafers", "black derby shoes", "chelsea boots".
+Look closely at the collar: a mandarin collar has NO collar points or fold — do not call it a regular collar.
 colors: array of 1-4 simple lowercase colour names, dominant first,
 pattern: one word or short phrase (e.g. "solid", "striped", "checked", "floral", "graphic"),
 formality: one of ${FORMALITY.join(', ')},
 seasons: array, subset of ${SEASONS.join(', ')},
-description: one short sentence (max 20 words) a stylist would find useful.
+description: one short sentence (max 25 words) a stylist would find useful, mentioning collar/neckline, sleeve length and fit for tops, or fabric and fit for bottoms.
 If several garments are visible, tag the most prominent one.`
 
 function normaliseImage(body) {

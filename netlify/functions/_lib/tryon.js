@@ -82,8 +82,37 @@ function describe(item) {
   return `${bits || 'garment'}${desc}`
 }
 
+// Construction details the image model tends to "normalise" away (e.g. every collar becomes a
+// standard shirt collar, every bottom becomes generic pants). Spelled out as must-keep rules.
+const DETAIL_RULES = [
+  [/mandarin|band collar|chinese collar|nehru|stand[- ]?(up )?collar|grandad/, 'MANDARIN (band / Chinese) collar: a short stand-up band around the neck with NO fold-down collar points and NO lapels. Do not draw a regular shirt collar.'],
+  [/button[- ]down/, 'button-down collar: collar points fastened to the shirt with small buttons.'],
+  [/cuban|camp collar|resort collar/, 'cuban / camp collar: a flat, open collar lying on the chest, with no collar stand.'],
+  [/polo/, 'polo collar: soft knit collar with a short buttoned placket.'],
+  [/crew neck|round neck/, 'crew neck: round neckline with no collar.'],
+  [/v[- ]neck/, 'v-neck: V-shaped neckline with no collar.'],
+  [/henley/, 'henley: round collarless neckline with a short button placket.'],
+  [/turtle ?neck|roll ?neck/, 'turtleneck: high folded neck, no collar.'],
+  [/jean|denim/, 'JEANS: denim fabric with visible twill texture, five-pocket jeans construction, contrast stitching and rivets. Not chinos, not formal trousers.'],
+  [/chino/, 'CHINOS: smooth cotton twill (NOT denim), slanted front pockets, casual flat front, no crease. Not jeans, not formal trousers.'],
+  [/trouser|slacks|formal pant|dress pant/, 'TROUSERS: tailored formal trousers in smooth suiting fabric with a pressed front crease and clean waistband. Not jeans, not chinos.'],
+  [/jogger|track ?pant|sweatpant/, 'JOGGERS: soft knit fabric with elastic waistband and cuffed ankles.'],
+  [/cargo/, 'CARGO PANTS: with side cargo pockets on the thighs.'],
+  [/shorts/, 'SHORTS: above the knee.'],
+  [/short[- ]sleeve|half[- ]sleeve/, 'short sleeves (not full sleeves).'],
+  [/kurta/, 'KURTA: long tunic reaching mid-thigh or knee, not a regular shirt.'],
+]
+
+function mustKeep(item) {
+  const text = [item.subcategory, item.description].filter(Boolean).join(' ').toLowerCase()
+  const rules = DETAIL_RULES.filter(([re]) => re.test(text)).map(([, rule]) => rule)
+  if (!rules.length && item.category === 'top') rules.push('copy the collar / neckline exactly as shown in its image.')
+  if (!rules.length && item.category === 'bottom') rules.push('copy the exact trouser type, fabric and fit shown in its image.')
+  return rules.length ? ` MUST KEEP: ${rules.join(' ')}` : ''
+}
+
 function buildPrompt(items) {
-  const lines = items.map((it, i) => `Image ${i + 2}: ${describe(it)}`)
+  const lines = items.map((it, i) => `Image ${i + 2}: ${describe(it)}.${mustKeep(it)}`)
   const cats = Array.from(new Set(items.map((it) => it.category).filter(Boolean)))
   return [
     `Edit image 1: replace only the person's clothing with the garments shown in the other images (${cats.join(', ') || 'garments'} as given); keep everything else identical.`,
@@ -91,6 +120,7 @@ function buildPrompt(items) {
     'Keep the original pose, background, lighting, framing, crop and camera angle unchanged.',
     'Dress the person in exactly these garments, faithfully matching their colour, pattern, fabric, cut and details, fitted naturally to the body with realistic drape, folds and shadows:',
     ...lines,
+    "Reproduce each garment's construction exactly from its image and the MUST KEEP notes: collar or neckline type, sleeve length, closures, pockets, and whether the bottom is jeans, chinos or trousers. Never substitute a standard shirt collar or generic pants.",
     'Any clothing category not listed above stays exactly as it is in image 1. Do not add, remove or restyle anything else. Photorealistic result, no text or watermarks.',
   ].join('\n')
 }
