@@ -10,7 +10,8 @@ const { HttpError } = require('./http')
 const anthropic = require('./anthropic')
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
-const OPENAI_DEFAULT_MODEL = 'gpt-4o-mini'
+// Quality first (owner's choice): full gpt-4.1 for tagging / suggestions / profile. OPENAI_MODEL overrides.
+const OPENAI_DEFAULT_MODEL = 'gpt-4.1'
 
 function pickProvider() {
   const forced = (process.env.AI_PROVIDER || '').trim().toLowerCase()
@@ -49,7 +50,7 @@ function toOpenAIContent(content) {
   if (typeof content === 'string') return content
   return toParts(content).map((p) =>
     p.type === 'image'
-      ? { type: 'image_url', image_url: { url: `data:${p.mediaType};base64,${p.data}` } }
+      ? { type: 'image_url', image_url: { url: `data:${p.mediaType};base64,${p.data}`, detail: 'high' } }
       : { type: 'text', text: p.text }
   )
 }

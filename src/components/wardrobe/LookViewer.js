@@ -132,7 +132,7 @@ export default function LookViewer({ look, onClose, onDelete }) {
   return (
     <Overlay
       title="My look"
-      subtitle={date}
+      subtitle={[`Photo ${look.photo || 1}`, date].filter(Boolean).join(' · ')}
       onClose={onClose}
       actions={
         <>

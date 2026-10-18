@@ -1,6 +1,6 @@
 // Client-side image resizing for the wardrobe app.
-// Every photo is downscaled to <= 1024px (longest side) and re-encoded as JPEG
-// before it is uploaded or sent to a function — keeps storage + API costs small.
+// Photos are downscaled (default <= 1024px longest side; callers may ask for more, e.g. 1536px for
+// new closet items, 2048px for try-on photos) and re-encoded as JPEG before upload / function calls.
 
 const DEFAULT_MAX = 1024
 const DEFAULT_QUALITY = 0.8

@@ -6,26 +6,29 @@
 //                           on completion uploads the PNG and DELETEs the stored OpenAI response.
 //
 // Storage protocol (private "wardrobe" bucket, all as the USER so RLS applies):
-//   {uid}/me/photo.jpg               owner photo (uploaded by the client)
-//   {uid}/tryons/{key}.pending.json  { responseId, startedAt, mode } while OpenAI is working
+//   {uid}/me/photo.jpg               owner Photo 1 (uploaded by the client)
+//   {uid}/me/photo2.jpg              owner Photo 2 (optional, e.g. with specs instead of sunglasses)
+//   {uid}/tryons/{key}.pending.json  { responseId, startedAt, mode, photo } while OpenAI is working
 //   {uid}/tryons/{key}.png           result (upsert)
 //   {uid}/tryons/{key}.error.json    { error, code, at } on failure (removed on start / success)
 // key = first 32 hex chars of sha256(sorted unique lower-case item ids joined by ","), or "test-<ms>".
+// Photo 2 looks use the same hash + "-p2" (Photo 1 keys are unchanged, so existing looks still resolve).
 const crypto = require('crypto')
 const { HttpError } = require('./http')
 const { storageClient } = require('./storage')
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
-// Verified 2026-10 (OpenAI image_generation tool guide): gpt-4.1-mini is a supported mainline model.
-const DEFAULT_TRYON_MODEL = 'gpt-4.1-mini'
+// Verified 2026-10-18 (OpenAI image_generation tool guide): gpt-4.1 is a supported mainline model.
+const DEFAULT_TRYON_MODEL = 'gpt-4.1'
 // gpt-image-2 always processes inputs at high fidelity (input_fidelity must be omitted for it).
 const DEFAULT_IMAGE_MODEL = 'gpt-image-2'
-const DEFAULT_QUALITY = 'medium'
+const DEFAULT_QUALITY = 'high' // quality first; OPENAI_IMAGE_QUALITY overrides (test mode stays low)
 const MAX_ITEMS = 6
 const PENDING_FRESH_MS = 10 * 60 * 1000
 const OPENAI_TIMEOUT_MS = 6000
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-const KEY_RE = /^(?:[0-9a-f]{32}|test-\d{10,16})$/
+const KEY_RE = /^(?:[0-9a-f]{32}(?:-p2)?|test-\d{10,16})$/
+const PHOTO_FILES = { 1: 'photo.jpg', 2: 'photo2.jpg' }
 const CATEGORY_ORDER = ['top', 'outerwear', 'bottom', 'shoes', 'accessory']
 const TEST_PROMPT =
   'Generate a flat-lay product photo of a folded navy oxford shirt, beige chinos and white sneakers on a light wooden surface, soft daylight.'
@@ -34,8 +37,17 @@ function normaliseIds(ids) {
   return Array.from(new Set((ids || []).map((x) => String(x).trim().toLowerCase()))).sort()
 }
 
-function tryOnKey(itemIds) {
-  return crypto.createHash('sha256').update(normaliseIds(itemIds).join(',')).digest('hex').slice(0, 32)
+/** Must match src/lib/wardrobe/tryon.js → tryOnKey(). Photo 1 keeps the original formula. */
+function tryOnKey(itemIds, photo = 1) {
+  const hash = crypto.createHash('sha256').update(normaliseIds(itemIds).join(',')).digest('hex').slice(0, 32)
+  return photo === 2 ? `${hash}-p2` : hash
+}
+
+function parsePhoto(v) {
+  if (v === undefined || v === null || v === '') return 1
+  const n = Number(v)
+  if (n === 1 || n === 2) return n
+  throw new HttpError(400, 'photo must be 1 or 2.')
 }
 
 // Reads width/height from JPEG (SOF marker) or PNG (IHDR) bytes. Returns null if unknown.
@@ -118,6 +130,7 @@ function buildPrompt(items) {
     `Edit image 1: replace only the person's clothing with the garments shown in the other images (${cats.join(', ') || 'garments'} as given); keep everything else identical.`,
     'Image 1 is the base photo to edit. Keep the same person exactly: face, facial features, expression, hair, skin tone, body shape and proportions.',
     'Keep the original pose, background, lighting, framing, crop and camera angle unchanged.',
+    'Keep eyewear exactly as in image 1 — if the person wears glasses/specs keep the same frames; if sunglasses keep sunglasses; if none, add none. Do not add, remove or change glasses, watches, jewellery or headwear unless they are one of the listed garments.',
     'Dress the person in exactly these garments, faithfully matching their colour, pattern, fabric, cut and details, fitted naturally to the body with realistic drape, folds and shadows:',
     ...lines,
     "Reproduce each garment's construction exactly from its image and the MUST KEEP notes: collar or neckline type, sleeve length, closures, pockets, and whether the bottom is jeans, chinos or trousers. Never substitute a standard shirt collar or generic pants.",
@@ -209,15 +222,16 @@ function requireOpenAIKey() {
 }
 
 function validateStartBody(body) {
-  if (body.mode === 'test') return { mode: 'test', ids: [], key: `test-${Date.now()}` }
+  if (body.mode === 'test') return { mode: 'test', ids: [], key: `test-${Date.now()}`, photo: 1 }
+  const photo = parsePhoto(body.photo)
   const raw = Array.isArray(body.itemIds) ? body.itemIds : null
   if (!raw || raw.length === 0) throw new HttpError(400, 'Pick at least one item to try on.')
   const ids = normaliseIds(raw)
   if (ids.length > MAX_ITEMS) throw new HttpError(400, `Too many items (max ${MAX_ITEMS}).`)
   if (!ids.every((id) => UUID_RE.test(id))) throw new HttpError(400, 'itemIds must be item UUIDs.')
-  const key = tryOnKey(ids)
+  const key = tryOnKey(ids, photo)
   if (typeof body.key !== 'string' || body.key.toLowerCase() !== key) throw new HttpError(400, 'Invalid try-on key.')
-  return { mode: 'tryon', ids, key }
+  return { mode: 'tryon', ids, key, photo }
 }
 
 async function loadItems({ supabaseUrl, anonKey, token }, ids) {
@@ -255,10 +269,10 @@ async function saveError(store, p, code, message) {
   }
 }
 
-/** POST body { itemIds, outfitName?, key } or { mode: 'test' } → { status: 'pending', key, responseId } */
+/** POST body { itemIds, outfitName?, key, photo?: 1|2 } or { mode: 'test' } → { status: 'pending', key, responseId } */
 async function start(session, body) {
   requireOpenAIKey()
-  const { mode, ids, key } = validateStartBody(body)
+  const { mode, ids, key, photo: slot } = validateStartBody(body)
   const uid = session.ownerId || session.user.id // shared wardrobe: owner's folder
   const store = storageClient(session)
   const p = paths(uid, key)
@@ -267,7 +281,7 @@ async function start(session, body) {
     const existing = await store.list(p.dir, key)
     const pending = existing.find((o) => o.name === `${key}.pending.json`)
     if (pending && Date.now() - stamp(pending) < PENDING_FRESH_MS) {
-      return { status: 'pending', key, alreadyRunning: true }
+      return { status: 'pending', key, photo: slot, alreadyRunning: true }
     }
   }
 
@@ -280,8 +294,10 @@ async function start(session, body) {
     Object.assign(tool, { quality: 'low', size: '1024x1024', action: 'generate' })
     content = [{ type: 'input_text', text: TEST_PROMPT }]
   } else {
-    const [photo, items] = await Promise.all([store.download(`${uid}/me/photo.jpg`), loadItems(session, ids)])
-    if (!photo) throw new TryOnError(400, 'no_photo', 'Add your photo in the Me tab first.')
+    const [photo, items] = await Promise.all([store.download(`${uid}/me/${PHOTO_FILES[slot]}`), loadItems(session, ids)])
+    if (!photo) {
+      throw new TryOnError(400, 'no_photo', slot === 2 ? 'Add your photo (Photo 2) in the Me tab first.' : 'Add your photo in the Me tab first.')
+    }
     const owned = items.filter((it) => it.image_path.startsWith(`${uid}/`))
     if (owned.length === 0) throw new TryOnError(400, 'no_items', 'None of these items are in your closet any more.')
     const bufs = await Promise.all(owned.map((it) => store.download(it.image_path)))
@@ -297,8 +313,9 @@ async function start(session, body) {
     if (/^gpt-image-1/.test(imageModel)) tool.input_fidelity = 'high'
     content = [
       { type: 'input_text', text: buildPrompt(usable) },
-      { type: 'input_image', image_url: dataUrl(photo) }, // image 1 = the person (base to edit)
-      ...bufs.filter(Boolean).map((b) => ({ type: 'input_image', image_url: dataUrl(b) })),
+      // detail 'high' (Responses input_image: low|high|auto|original; gpt-4.1 has no 'original').
+      { type: 'input_image', image_url: dataUrl(photo), detail: 'high' }, // image 1 = the person (base to edit)
+      ...bufs.filter(Boolean).map((b) => ({ type: 'input_image', image_url: dataUrl(b), detail: 'high' })),
     ]
   }
 
@@ -324,7 +341,7 @@ async function start(session, body) {
   try {
     await store.upload(
       p.pending,
-      JSON.stringify({ responseId: created.id, startedAt: new Date().toISOString(), mode }),
+      JSON.stringify({ responseId: created.id, startedAt: new Date().toISOString(), mode, photo: slot }),
       'application/json'
     )
   } catch (e) {
@@ -336,7 +353,7 @@ async function start(session, body) {
     await deleteResponse(created.id)
     throw e
   }
-  return { status: 'pending', key, responseId: created.id }
+  return { status: 'pending', key, photo: slot, responseId: created.id }
 }
 
 function failureMessage(resp) {
@@ -470,4 +487,6 @@ module.exports = {
   mapOpenAIError,
   DEFAULT_TRYON_MODEL,
   DEFAULT_IMAGE_MODEL,
+  DEFAULT_QUALITY,
+  PHOTO_FILES,
 }

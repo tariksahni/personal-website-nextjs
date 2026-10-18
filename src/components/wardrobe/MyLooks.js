@@ -3,7 +3,7 @@ import { deleteLook, listLooks } from 'Lib/wardrobe/tryon'
 import LookViewer from './LookViewer'
 import { Spinner, ErrorBanner, SectionTitle } from './ui'
 
-/** Me tab: gallery of saved try-on images. */
+/** Me tab: gallery of saved try-on images (from both photos, labelled). */
 export default function MyLooks() {
   const [looks, setLooks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -40,13 +40,16 @@ export default function MyLooks() {
               key={look.key}
               type="button"
               onClick={() => setOpen(look)}
-              aria-label="Open look"
+              aria-label={`Open look (Photo ${look.photo || 1})`}
               className="tw-relative tw-m-0 tw-p-0 tw-aspect-[2/3] tw-overflow-hidden tw-rounded-xl tw-border-0 focus:tw-border-0 tw-bg-stone-100 active:tw-bg-stone-100 tw-cursor-pointer"
             >
               {look.url && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={look.url} alt="" loading="lazy" className="tw-absolute tw-inset-0 tw-w-full tw-h-full tw-object-cover" />
               )}
+              <span className="tw-absolute tw-left-1.5 tw-bottom-1.5 tw-rounded-full tw-bg-black/60 tw-px-2 tw-py-0.5 tw-text-[11px] tw-font-medium tw-leading-tight tw-text-white">
+                Photo {look.photo || 1}
+              </span>
             </button>
           ))}
         </div>

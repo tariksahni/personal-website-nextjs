@@ -139,7 +139,7 @@ export default function MeTab() {
 
           <div className="tw-flex tw-items-start tw-gap-2 tw-rounded-xl tw-bg-emerald-50 tw-px-3 tw-py-2.5 tw-text-xs tw-leading-snug tw-text-emerald-900">
             <span aria-hidden>🔒</span>
-            <span>This photo is only used once to write the text below and is not saved here. Your try-on photo (above) is stored privately and only used for try-on — it is sent to OpenAI when you tap “Try it on”.</span>
+            <span>This photo is only used once to write the text below and is not saved here. Your try-on photos (above) are stored privately and only used for try-on — one is sent to OpenAI when you tap “Try it on”.</span>
           </div>
 
           <div>

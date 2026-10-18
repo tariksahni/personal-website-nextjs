@@ -16,10 +16,17 @@ const FILTERS = [
   { id: 'untagged', label: 'Needs tags' },
 ]
 
+const CLOSET_MAX_PX = 1536
+const CLOSET_QUALITY = 0.85
+const MAX_TAG_BASE64 = 4.5 * 1024 * 1024
+
 /** Upload one photo: resize → storage → AI tags (optional) → row. Returns { item, tagError }. */
 async function addOne(file, onStep) {
   onStep('Preparing photo')
-  const { blob, base64, mediaType } = await resizeImage(file)
+  // Quality first: 1536px / 0.85 (base64 stays well under wardrobe-tag's 5MB limit).
+  let { blob, base64, mediaType } = await resizeImage(file, CLOSET_MAX_PX, CLOSET_QUALITY)
+  // Netlify sync functions accept ~6MB bodies: fall back to the smaller default for huge, noisy photos.
+  if (base64.length > MAX_TAG_BASE64) ({ blob, base64, mediaType } = await resizeImage(file))
   onStep('Uploading')
   const path = await uploadImage(blob)
   onStep('Tagging')
