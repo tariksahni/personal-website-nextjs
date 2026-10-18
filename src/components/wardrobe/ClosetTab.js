@@ -80,7 +80,7 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
     const targets = visible
     if (!targets.length) return
     const ok = window.confirm(
-      `Re-tag ${targets.length} item${targets.length === 1 ? '' : 's'} with AI? This replaces their current tags (including manual edits) and costs about ₹${Math.max(1, Math.round(targets.length * 0.3))}.`
+      `Re-tag ${targets.length} item${targets.length === 1 ? '' : 's'} with AI? Your colours are kept; other tags (type, collar, pattern, formality, seasons, description) are replaced.`
     )
     if (!ok) return
     setErrors([])
@@ -95,8 +95,11 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
         const { base64, mediaType } = await resizeImage(blob)
         // eslint-disable-next-line no-await-in-loop
         const { tags } = await callFn('wardrobe-tag', { imageBase64: base64, mediaType })
+        // Keep the owner's colours (often fixed by hand); only fall back to AI colours if none are set.
+        const { colors, ...rest } = tags || {}
+        const patch = it.colors && it.colors.length ? rest : { ...rest, colors }
         // eslint-disable-next-line no-await-in-loop
-        const updated = await updateItem(it.id, tags)
+        const updated = await updateItem(it.id, patch)
         onItemsChange((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
       } catch (e) {
         problems.push(`${it.subcategory || 'Item'}: ${e.message}`)

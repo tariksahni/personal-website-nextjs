@@ -103,7 +103,9 @@ export default function ItemEditor({ item, url, onClose, onSaved, onDeleted }) {
       const blob = await downloadImage(item.image_path)
       const { base64, mediaType } = await resizeImage(blob)
       const { tags } = await callFn('wardrobe-tag', { imageBase64: base64, mediaType })
-      setForm(toForm({ ...item, ...tags }))
+      // Keep existing colours (often fixed by hand); use AI colours only if the item has none.
+      const keepColors = item.colors && item.colors.length ? { colors: item.colors } : {}
+      setForm(toForm({ ...item, ...tags, ...keepColors }))
     } catch (e) {
       setError(e.message)
     } finally {
