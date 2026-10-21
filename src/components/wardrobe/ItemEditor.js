@@ -46,7 +46,7 @@ function fromForm(form) {
 }
 
 /** Bottom-sheet editor for a single closet item. */
-export default function ItemEditor({ item, url, onClose, onSaved, onDeleted }) {
+export default function ItemEditor({ item, url, onClose, onSaved, onDeleted, onStyle }) {
   const [form, setForm] = useState(() => toForm(item))
   const [busy, setBusy] = useState(null) // 'save' | 'delete' | 'tag'
   const [error, setError] = useState(null)
@@ -148,6 +148,12 @@ export default function ItemEditor({ item, url, onClose, onSaved, onDeleted }) {
           </div>
 
           <ErrorBanner message={error} onDismiss={() => setError(null)} />
+
+          {onStyle && item.category && (
+            <button type="button" onClick={() => onStyle(item)} disabled={!!busy} className={`${BTN_PRIMARY} tw-w-full`}>
+              <span aria-hidden>◎</span> Style this piece
+            </button>
+          )}
 
           <div className="tw-grid tw-grid-cols-2 tw-gap-3">
             <div>

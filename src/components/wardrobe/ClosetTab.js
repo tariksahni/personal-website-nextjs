@@ -43,7 +43,7 @@ async function addOne(file, onStep) {
   return { item, tagError }
 }
 
-export default function ClosetTab({ items, urls, loading, onItemsChange }) {
+export default function ClosetTab({ items, urls, loading, onItemsChange, onStyleItem }) {
   const [filter, setFilter] = useState('all')
   const [progress, setProgress] = useState(null) // { index, total, step }
   const [errors, setErrors] = useState([])
@@ -266,6 +266,10 @@ export default function ClosetTab({ items, urls, loading, onItemsChange }) {
           item={editing}
           url={urls[editing.image_path]}
           onClose={closeEditor}
+          onStyle={onStyleItem ? (it) => {
+            setEditing(null)
+            onStyleItem(it)
+          } : undefined}
           onSaved={(updated) => {
             onItemsChange((prev) => prev.map((it) => (it.id === updated.id ? updated : it)))
             setEditing(null)

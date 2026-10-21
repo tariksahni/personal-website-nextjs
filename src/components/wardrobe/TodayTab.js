@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { callFn, localDate } from 'Lib/wardrobe/api'
 import { getSuggestions, getWearLog, logWear } from 'Lib/wardrobe/data'
 import OutfitCard from './OutfitCard'
+import BuildAround from './BuildAround'
 import TryOnSheet from './TryOnSheet'
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Spinner, ErrorBanner, Notice, SectionTitle } from './ui'
 
@@ -16,7 +17,7 @@ function sameIds(a, b) {
   return b.every((id) => s.has(id))
 }
 
-export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGoToMe }) {
+export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGoToMe, anchor, setAnchor }) {
   const [date, setDate] = useState(() => localDate())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -113,8 +114,8 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
     run('special', note.slice(0, 300))
   }
 
-  const wear = async (occasion, outfit, index) => {
-    setWearing(`${occasion}:${index}`)
+  const wear = async (occasion, outfit, index, key = `${occasion}:${index}`) => {
+    setWearing(key)
     setWearError(null)
     try {
       const ids = (outfit.item_ids || []).filter((id) => itemsById[id])
@@ -241,6 +242,22 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
           />
         )
       })}
+
+      {closetReady && setAnchor && (
+        <BuildAround
+          items={items}
+          urls={urls}
+          itemsById={itemsById}
+          anchor={anchor}
+          setAnchor={setAnchor}
+          date={date}
+          includeJacket={includeJacket}
+          wearLog={wearLog}
+          wearing={wearing}
+          onWear={(outfit, i) => wear('office', outfit, i, `anchor:${i}`)}
+          onTryOn={setTryOn}
+        />
+      )}
 
       {closetReady && (
         <section className="tw-rounded-2xl tw-bg-stone-900 tw-p-4 tw-text-white">

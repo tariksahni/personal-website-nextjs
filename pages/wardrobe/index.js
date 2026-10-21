@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Head from 'next/head'
 import { useAuth } from 'Hooks/useAuth'
 import { listItems } from 'Lib/wardrobe/data'
+import { localDate } from 'Lib/wardrobe/api'
 import TodayTab from 'Components/wardrobe/TodayTab'
 import ClosetTab from 'Components/wardrobe/ClosetTab'
 import MeTab from 'Components/wardrobe/MeTab'
@@ -9,6 +10,7 @@ import { useSignedUrls } from 'Components/wardrobe/useSignedUrls'
 import { ErrorBanner, Spinner } from 'Components/wardrobe/ui'
 
 const THEME_COLOR = '#fafaf9'
+const ANCHOR_KEY = 'wardrobe.anchor'
 
 const TABS = [
   {
@@ -53,6 +55,29 @@ export default function Wardrobe() {
   const [itemsError, setItemsError] = useState(null)
   const urls = useSignedUrls(items)
   const userId = user ? user.id : null
+  // "Build around a piece" (Today tab). Lifted here so it survives tab switches and "Style this piece" from the Closet.
+  const [anchor, setAnchor] = useState(null) // { id, payload, pending, error, start }
+
+  // Restore today's anchor results for this tab session (best effort).
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(ANCHOR_KEY) || 'null')
+      if (saved && saved.id && saved.date === localDate()) setAnchor({ id: saved.id, payload: saved.payload || null })
+    } catch (e) {
+      // storage unavailable
+    }
+  }, [])
+  useEffect(() => {
+    try {
+      if (anchor && anchor.id) {
+        window.sessionStorage.setItem(ANCHOR_KEY, JSON.stringify({ id: anchor.id, payload: anchor.payload || null, date: localDate() }))
+      } else {
+        window.sessionStorage.removeItem(ANCHOR_KEY)
+      }
+    } catch (e) {
+      // storage unavailable
+    }
+  }, [anchor])
 
   const loadItems = useCallback(() => {
     setItemsLoading(true)
@@ -71,6 +96,12 @@ export default function Wardrobe() {
     setTab(id)
     if (typeof window !== 'undefined') window.scrollTo(0, 0)
   }
+
+  const styleItem = useCallback((item) => {
+    setAnchor({ id: item.id, payload: null, pending: false, error: null, start: Date.now() })
+    setTab('today')
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  }, [])
 
   if (loading || !user) {
     return (
@@ -113,10 +144,10 @@ export default function Wardrobe() {
           </div>
         )}
         {tab === 'today' && (
-          <TodayTab items={items} urls={urls} itemsLoading={itemsLoading} onGoToCloset={() => selectTab('closet')} onGoToMe={() => selectTab('me')} />
+          <TodayTab items={items} urls={urls} itemsLoading={itemsLoading} onGoToCloset={() => selectTab('closet')} onGoToMe={() => selectTab('me')} anchor={anchor} setAnchor={setAnchor} />
         )}
         {tab === 'closet' && (
-          <ClosetTab items={items} urls={urls} loading={itemsLoading} onItemsChange={setItems} />
+          <ClosetTab items={items} urls={urls} loading={itemsLoading} onItemsChange={setItems} onStyleItem={styleItem} />
         )}
         {tab === 'me' && <MeTab />}
       </main>

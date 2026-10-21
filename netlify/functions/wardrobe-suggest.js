@@ -3,7 +3,10 @@
  *
  * Request:  { "occasion": "office"|"casual"|"special",
  *             "specialNote"?: string,      // required when occasion = "special" (<= 300 chars)
- *             "date": "YYYY-MM-DD" }       // owner's LOCAL date
+ *             "date": "YYYY-MM-DD",        // owner's LOCAL date
+ *             "includeJacket"?: boolean,
+ *             "anchorId"?: uuid,           // "Build around a piece": every outfit includes this closet item
+ *             "avoid"?: [[uuid, ...], ...] } // anchor mode only: combos on screen now (max 30), returned last if at all
  * Response: { "occasion": "office", "date": "2026-10-11", "specialNote": null,
  *             "outfits": [ { "name": string, "item_ids": [uuid, ...], "reason": string } ],  // office: up to 7, others: up to 3
  *             "cooldownRelaxed": boolean,  // true if recently-worn tops had to be included
@@ -12,6 +15,12 @@
  *           The same object minus "saved" is stored as wardrobe_suggestions.payload,
  *           keyed by (user_id, for_date = date, occasion).
  * Errors:   { "error": "<readable message>" }  // 422 if closet lacks a top or bottom
+ *
+ * Anchor mode (anchorId set): up to 7 outfits that all contain the anchor; occasion text is the relaxed office
+ * one unless occasion = "special" with a note. Nothing is read from or written to wardrobe_suggestions (today's
+ * office cache is untouched); refresh avoidance comes from `avoid`. Response:
+ *           { "anchorId", "occasion", "date", "specialNote", "includeJacket", "outfits", "cooldownRelaxed", "generatedAt" }
+ *           404 if the item isn't in the closet, 422 if it has no category yet.
  *
  * All Supabase reads/writes use the caller's token, so RLS applies.
  */
@@ -27,6 +36,9 @@ const TARGET = { office: 7, casual: 3, special: 3 }
 const PER_CALL = 5
 const HISTORY_DAYS = 14
 const OCCASIONS = ['office', 'casual', 'special']
+const ANCHOR_TARGET = 7
+const MAX_AVOID = 30
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const OCCASION_TEXT = {
   office:
@@ -157,6 +169,12 @@ function compactItem(i, shortId) {
   return o
 }
 
+function describe(i) {
+  const parts = [(i.colors || []).join('/'), i.pattern && i.pattern !== 'solid' ? i.pattern : '', i.subcategory || i.category]
+  const base = parts.filter(Boolean).join(' ')
+  return (i.description ? `${base}: ${i.description}` : base).slice(0, 160)
+}
+
 const SYSTEM = `You are a personal stylist choosing outfits from the user's own closet.
 Reply with ONLY a JSON object: {"outfits":[{"name":string,"item_ids":[string],"reason":string}]} with exactly the number of different outfits requested.
 Rules: use only ids from the closet list; each outfit has exactly one "top" and exactly one "bottom", exactly one "shoes" item if any shoes exist, follow the jacket rule given in the request for "outerwear" items, and up to two "accessory" items.
@@ -175,6 +193,19 @@ exports.handler = withHandler(async (event) => {
   if (occasion === 'special' && !specialNote) throw new HttpError(400, 'Describe the special day first.')
   const includeJacket = body.includeJacket === true
 
+  // Optional "Build around a piece" anchor.
+  const anchorMode = body.anchorId !== undefined && body.anchorId !== null
+  const anchorId = anchorMode ? String(body.anchorId).trim().toLowerCase() : null
+  if (anchorMode && !UUID_RE.test(anchorId)) throw new HttpError(400, 'anchorId must be a closet item id.')
+  let avoid = []
+  if (anchorMode && body.avoid !== undefined && body.avoid !== null) {
+    const okCombo = (c) => Array.isArray(c) && c.length > 0 && c.length <= 12 && c.every((id) => typeof id === 'string' && UUID_RE.test(id))
+    if (!Array.isArray(body.avoid) || body.avoid.length > MAX_AVOID || !body.avoid.every(okCombo)) {
+      throw new HttpError(400, `avoid must be a list of up to ${MAX_AVOID} outfits (lists of item ids).`)
+    }
+    avoid = body.avoid.map((c) => c.map((id) => id.toLowerCase()))
+  }
+
   const rest = restClient(auth)
   const since = addDays(date, -HISTORY_DAYS)
   const [items, profiles, wearLog] = await Promise.all([
@@ -183,17 +214,38 @@ exports.handler = withHandler(async (event) => {
     rest.get(`wardrobe_wear_log?select=worn_on,item_ids&worn_on=gte.${since}&order=worn_on.desc`),
   ])
 
+  let anchor = null
+  if (anchorMode) {
+    anchor = items.find((i) => String(i.id).toLowerCase() === anchorId) || null
+    if (!anchor) {
+      // Distinguish "not in your closet" from "not tagged yet" (the list above only has tagged items).
+      const rows = await rest.get(`wardrobe_items?select=id&id=eq.${anchorId}&limit=1`).catch(() => [])
+      if (rows && rows.length) throw new HttpError(422, 'Tag that item (give it a category) before styling around it.')
+      throw new HttpError(404, "That item isn't in your closet anymore.")
+    }
+  }
+
   if (!items.some((i) => i.category === 'top') || !items.some((i) => i.category === 'bottom')) {
     throw new HttpError(422, 'Add at least one top and one bottom to your closet first.')
   }
 
-  const target = TARGET[occasion]
-  const cooled = applyTopCooldown(items, wearLog, date, Math.max(MIN_TOPS, target))
+  const target = anchor ? ANCHOR_TARGET : TARGET[occasion]
+  // An anchor top is the only top, so the top cooldown doesn't apply (and the anchor is always allowed).
+  const cooled = anchor && anchor.category === 'top'
+    ? { allowed: items, cooldownRelaxed: false }
+    : applyTopCooldown(items, wearLog, date, Math.max(MIN_TOPS, target))
   const cooldownRelaxed = cooled.cooldownRelaxed
+  // An outerwear anchor forces a jacket in every outfit, whatever the toggle says.
+  const wantJacket = includeJacket || (anchor && anchor.category === 'outerwear')
   // Jackets only when asked for: drop outerwear from the candidates otherwise.
-  const allowed = includeJacket ? cooled.allowed : cooled.allowed.filter((i) => i.category !== 'outerwear')
+  let allowed = wantJacket ? cooled.allowed : cooled.allowed.filter((i) => i.category !== 'outerwear')
+  if (anchor) {
+    // Anchor top/bottom/shoes/outerwear is the only candidate in its category; accessories can sit alongside it.
+    const exclusive = anchor.category !== 'accessory'
+    allowed = allowed.filter((i) => i.id !== anchor.id && !(exclusive && i.category === anchor.category)).concat(anchor)
+  }
   const hasJackets = allowed.some((i) => i.category === 'outerwear')
-  const jacketRule = includeJacket && hasJackets
+  const jacketRule = wantJacket && hasJackets
     ? 'Jacket rule: every outfit must include exactly one "outerwear" item (jacket, blazer, overshirt or coat).'
     : 'Jacket rule: do not include any "outerwear" item.'
   const profile = profiles[0] || {}
@@ -213,19 +265,32 @@ exports.handler = withHandler(async (event) => {
     .map((r) => `${r.worn_on}: ${shortList(r.item_ids).join(', ')}`)
     .filter((line) => !line.endsWith(': '))
 
-  // What's currently shown for this day/occasion: Refresh must come back with different outfits.
-  const prevRows = await rest.get(
-    `wardrobe_suggestions?select=payload&for_date=eq.${date}&occasion=eq.${occasion}&limit=1`
-  ).catch(() => [])
-  const prevOutfits = (prevRows[0] && prevRows[0].payload && prevRows[0].payload.outfits) || []
+  // What's currently shown: Refresh must come back with different outfits.
+  // Anchor mode: the client sends what's on screen; office/special: today's stored suggestions.
+  let prevOutfits = []
+  if (anchor) {
+    const realId = new Map(items.map((i) => [String(i.id).toLowerCase(), i.id]))
+    prevOutfits = avoid.map((c) => ({ item_ids: c.map((id) => realId.get(id) || id) }))
+  } else {
+    const prevRows = await rest.get(
+      `wardrobe_suggestions?select=payload&for_date=eq.${date}&occasion=eq.${occasion}&limit=1`
+    ).catch(() => [])
+    prevOutfits = (prevRows[0] && prevRows[0].payload && prevRows[0].payload.outfits) || []
+  }
   const comboKey = (ids) => [...ids].sort().join(',')
   const shownKeys = new Set(prevOutfits.map((o) => comboKey(o.item_ids || [])))
   const shownLines = prevOutfits.map((o) => shortList(o.item_ids).join(', ')).filter(Boolean)
 
+  const occasionText = anchor && !(occasion === 'special' && specialNote) ? OCCASION_TEXT.office : OCCASION_TEXT[occasion]
+  const anchorLine = anchor
+    ? `Every outfit MUST include item ${toShort.get(anchor.id)} (${describe(anchor)}). Build each outfit around it and vary the other pieces as much as possible across outfits (different ${['top', 'bottom', 'shoes'].filter((c) => c !== anchor.category).join(', ')} each time where the closet allows).`
+    : ''
+
   const buildPrompt = (count) =>
     [
-      `Occasion: ${OCCASION_TEXT[occasion]}.`,
+      `Occasion: ${occasionText}.`,
       `Suggest exactly ${count} different outfits.`,
+      anchorLine,
       specialNote ? `Special day details: ${specialNote}` : '',
       jacketRule,
       profile.profile_text ? `About me: ${profile.profile_text}` : '',
@@ -255,12 +320,27 @@ exports.handler = withHandler(async (event) => {
     if (failed) throw failed.reason
   }
 
-  const valid = validateOutfits(raw, allowed, includeJacket, raw.length)
+  let valid = validateOutfits(raw, allowed, wantJacket, raw.length)
+  if (anchor) valid = valid.filter((o) => o.item_ids.includes(anchor.id))
   // Prefer combinations that weren't on screen before; only fall back to them if the closet is small.
   const fresh = valid.filter((o) => !shownKeys.has(comboKey(o.item_ids)))
   const repeats = valid.filter((o) => shownKeys.has(comboKey(o.item_ids)))
   const outfits = fresh.concat(repeats).slice(0, target)
   if (!outfits.length) throw new HttpError(502, "Couldn't put together valid outfits. Please try again.")
+
+  if (anchor) {
+    // Not cached: keeps today's office suggestions intact.
+    return {
+      anchorId: anchor.id,
+      occasion,
+      date,
+      specialNote: specialNote || null,
+      includeJacket: !!wantJacket,
+      outfits,
+      cooldownRelaxed,
+      generatedAt: new Date().toISOString(),
+    }
+  }
 
   const payload = {
     occasion,
