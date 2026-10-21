@@ -133,6 +133,8 @@ function buildPrompt(items) {
     'Keep eyewear exactly as in image 1 — if the person wears glasses/specs keep the same frames; if sunglasses keep sunglasses; if none, add none. Do not add, remove or change glasses, watches, jewellery or headwear unless they are one of the listed garments.',
     'Dress the person in exactly these garments, faithfully matching their colour, pattern, fabric, cut and details, fitted naturally to the body with realistic drape, folds and shadows:',
     ...lines,
+    'Wear every top UNTUCKED: the shirt / t-shirt / kurta hem hangs loose and naturally over the waistband of the bottoms — never tucked in, not half-tucked. Tops sit with a relaxed, comfortable fit through the stomach and waist (not tight or clinging), draping naturally over the midsection.',
+    "Keep the person's real body shape, weight and stomach exactly as in image 1 — do not slim, flatten or reshape the body.",
     "Reproduce each garment's construction exactly from its image and the MUST KEEP notes: collar or neckline type, sleeve length, closures, pockets, and whether the bottom is jeans, chinos or trousers. Never substitute a standard shirt collar or generic pants.",
     'Any clothing category not listed above stays exactly as it is in image 1. Do not add, remove or restyle anything else. Photorealistic result, no text or watermarks.',
   ].join('\n')
