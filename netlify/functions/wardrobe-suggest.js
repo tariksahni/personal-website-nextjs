@@ -5,7 +5,7 @@
  *             "specialNote"?: string,      // required when occasion = "special" (<= 300 chars)
  *             "date": "YYYY-MM-DD" }       // owner's LOCAL date
  * Response: { "occasion": "office", "date": "2026-10-11", "specialNote": null,
- *             "outfits": [ { "name": string, "item_ids": [uuid, ...], "reason": string } ],  // 1-3 outfits
+ *             "outfits": [ { "name": string, "item_ids": [uuid, ...], "reason": string } ],  // office: up to 7, others: up to 3
  *             "cooldownRelaxed": boolean,  // true if recently-worn tops had to be included
  *             "generatedAt": ISO timestamp,
  *             "saved": boolean }           // whether it was cached in wardrobe_suggestions
@@ -21,11 +21,16 @@ const { callModel, extractJson } = require('./_lib/ai')
 
 const TOP_COOLDOWN_DAYS = 4
 const MIN_TOPS = 3
+// Outfits returned per occasion. Office is the everyday view, so it gets the most options.
+const TARGET = { office: 7, casual: 3, special: 3 }
+// Office is generated as two parallel model calls (keeps each call well under Netlify's 10s limit).
+const PER_CALL = 5
 const HISTORY_DAYS = 14
 const OCCASIONS = ['office', 'casual', 'special']
 
 const OCCASION_TEXT = {
-  office: 'a regular office day (smart casual to business casual unless the closet is mostly casual)',
+  office:
+    'a day at a relaxed, chill office: ANY item in the closet is fine for work (t-shirts, polos, shirts, jeans, chinos, trousers, sneakers all OK). Aim for put-together, varied everyday looks',
   casual: 'a casual day off / weekend',
   special: 'a special occasion described by the user',
 }
@@ -77,7 +82,7 @@ function restClient({ supabaseUrl, anonKey, token }) {
 }
 
 // Returns { allowed: Item[], cooldownRelaxed } applying the top cooldown rule.
-function applyTopCooldown(items, wearLog, date) {
+function applyTopCooldown(items, wearLog, date, minTops = MIN_TOPS) {
   const cooldownStart = addDays(date, -TOP_COOLDOWN_DAYS)
   const lastWorn = new Map() // item id -> latest worn_on (before today)
   for (const row of wearLog) {
@@ -91,11 +96,11 @@ function applyTopCooldown(items, wearLog, date) {
   const freshTops = tops.filter((i) => !isCooling(i))
   let cooldownRelaxed = false
   const allowedTops = [...freshTops]
-  if (allowedTops.length < MIN_TOPS) {
+  if (allowedTops.length < minTops) {
     const cooling = tops
       .filter(isCooling)
       .sort((a, b) => (lastWorn.get(a.id) < lastWorn.get(b.id) ? -1 : 1))
-    while (allowedTops.length < MIN_TOPS && cooling.length) {
+    while (allowedTops.length < minTops && cooling.length) {
       allowedTops.push(cooling.shift())
       cooldownRelaxed = true
     }
@@ -105,7 +110,7 @@ function applyTopCooldown(items, wearLog, date) {
 }
 
 // Keeps only outfits made of known ids that satisfy the category rules.
-function validateOutfits(rawOutfits, allowed, requireJacket = false) {
+function validateOutfits(rawOutfits, allowed, requireJacket = false, limit = 3) {
   const byId = new Map(allowed.map((i) => [i.id, i]))
   const hasShoes = allowed.some((i) => i.category === 'shoes')
   const needJacket = requireJacket && allowed.some((i) => i.category === 'outerwear')
@@ -127,13 +132,23 @@ function validateOutfits(rawOutfits, allowed, requireJacket = false) {
       item_ids: ids,
       reason: typeof o.reason === 'string' ? o.reason.trim().slice(0, 200) : '',
     })
-    if (out.length === 3) break
+    if (out.length === limit) break
   }
   return out
 }
 
-function compactItem(i) {
-  const o = { id: i.id, cat: i.category }
+// Short ids ("i1", "i2"…) instead of UUIDs: far fewer tokens, so the model answers faster.
+function shuffle(list) {
+  const a = [...list]
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function compactItem(i, shortId) {
+  const o = { id: shortId, cat: i.category }
   if (i.subcategory) o.type = i.subcategory
   if (i.colors && i.colors.length) o.colors = i.colors
   if (i.pattern) o.pattern = i.pattern
@@ -143,10 +158,10 @@ function compactItem(i) {
 }
 
 const SYSTEM = `You are a personal stylist choosing outfits from the user's own closet.
-Reply with ONLY a JSON object: {"outfits":[{"name":string,"item_ids":[string],"reason":string}]} with exactly 3 different outfits.
+Reply with ONLY a JSON object: {"outfits":[{"name":string,"item_ids":[string],"reason":string}]} with exactly the number of different outfits requested.
 Rules: use only ids from the closet list; each outfit has exactly one "top" and exactly one "bottom", exactly one "shoes" item if any shoes exist, follow the jacket rule given in the request for "outerwear" items, and up to two "accessory" items.
-Prefer varied tops across the 3 outfits, coherent colours and formality for the occasion, and avoid repeating recent full outfits.
-name: 2-4 words. reason: one short sentence (max 20 words) on why it works.`
+Use a DIFFERENT top in every outfit when the closet allows, mix bottoms and shoes for variety, keep colours coherent, and never repeat a combination listed under "Already shown".
+name: 2-4 words. reason: one short sentence (max 16 words) on why it works.`
 
 exports.handler = withHandler(async (event) => {
   const auth = await requireOwner(event)
@@ -172,7 +187,8 @@ exports.handler = withHandler(async (event) => {
     throw new HttpError(422, 'Add at least one top and one bottom to your closet first.')
   }
 
-  const cooled = applyTopCooldown(items, wearLog, date)
+  const target = TARGET[occasion]
+  const cooled = applyTopCooldown(items, wearLog, date, Math.max(MIN_TOPS, target))
   const cooldownRelaxed = cooled.cooldownRelaxed
   // Jackets only when asked for: drop outerwear from the candidates otherwise.
   const allowed = includeJacket ? cooled.allowed : cooled.allowed.filter((i) => i.category !== 'outerwear')
@@ -181,27 +197,69 @@ exports.handler = withHandler(async (event) => {
     ? 'Jacket rule: every outfit must include exactly one "outerwear" item (jacket, blazer, overshirt or coat).'
     : 'Jacket rule: do not include any "outerwear" item.'
   const profile = profiles[0] || {}
+
+  // Short id <-> real id maps.
+  const toShort = new Map()
+  const toReal = new Map()
+  allowed.forEach((it, idx) => {
+    toShort.set(it.id, `i${idx + 1}`)
+    toReal.set(`i${idx + 1}`, it.id)
+  })
+  const shortList = (ids) => (ids || []).map((id) => toShort.get(id)).filter(Boolean)
+
   const recent = wearLog
     .filter((r) => r.worn_on < date)
     .slice(0, 7)
-    .map((r) => `${r.worn_on}: ${(r.item_ids || []).join(', ')}`)
+    .map((r) => `${r.worn_on}: ${shortList(r.item_ids).join(', ')}`)
+    .filter((line) => !line.endsWith(': '))
 
-  const prompt = [
-    `Occasion: ${OCCASION_TEXT[occasion]}.`,
-    specialNote ? `Special day details: ${specialNote}` : '',
-    jacketRule,
-    profile.profile_text ? `About me: ${profile.profile_text}` : '',
-    profile.notes ? `My notes: ${profile.notes}` : '',
-    recent.length ? `Recently worn (date: item ids):\n${recent.join('\n')}` : '',
-    `Closet (JSON):\n${JSON.stringify(allowed.map(compactItem))}`,
-    'Return the JSON now.',
-  ]
-    .filter(Boolean)
-    .join('\n\n')
+  // What's currently shown for this day/occasion: Refresh must come back with different outfits.
+  const prevRows = await rest.get(
+    `wardrobe_suggestions?select=payload&for_date=eq.${date}&occasion=eq.${occasion}&limit=1`
+  ).catch(() => [])
+  const prevOutfits = (prevRows[0] && prevRows[0].payload && prevRows[0].payload.outfits) || []
+  const comboKey = (ids) => [...ids].sort().join(',')
+  const shownKeys = new Set(prevOutfits.map((o) => comboKey(o.item_ids || [])))
+  const shownLines = prevOutfits.map((o) => shortList(o.item_ids).join(', ')).filter(Boolean)
 
-  const text = await callModel({ system: SYSTEM, content: prompt, maxTokens: 4000, effort: 'low', json: true })
-  const parsed = extractJson(text)
-  const outfits = validateOutfits(parsed && parsed.outfits, allowed, includeJacket)
+  const buildPrompt = (count) =>
+    [
+      `Occasion: ${OCCASION_TEXT[occasion]}.`,
+      `Suggest exactly ${count} different outfits.`,
+      specialNote ? `Special day details: ${specialNote}` : '',
+      jacketRule,
+      profile.profile_text ? `About me: ${profile.profile_text}` : '',
+      profile.notes ? `My notes: ${profile.notes}` : '',
+      recent.length ? `Recently worn (date: item ids):\n${recent.join('\n')}` : '',
+      shownLines.length ? `Already shown (do NOT repeat these combinations):\n${shownLines.join('\n')}` : '',
+      // Shuffled order each time, so a Refresh explores different parts of the closet.
+      `Closet (JSON):\n${JSON.stringify(shuffle(allowed).map((it) => compactItem(it, toShort.get(it.id))))}`,
+      'Return the JSON now.',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+
+  const ask = async (count) => {
+    const text = await callModel({ system: SYSTEM, content: buildPrompt(count), maxTokens: 2500, effort: 'low', json: true })
+    const parsed = extractJson(text)
+    return ((parsed && parsed.outfits) || []).map((o) => ({
+      ...o,
+      item_ids: (Array.isArray(o && o.item_ids) ? o.item_ids : []).map((x) => toReal.get(String(x).trim()) || x),
+    }))
+  }
+  const calls = target > PER_CALL ? [PER_CALL, target + 2 - PER_CALL] : [target + 1]
+  const settled = await Promise.allSettled(calls.map(ask))
+  const raw = settled.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+  if (!raw.length) {
+    const failed = settled.find((r) => r.status === 'rejected')
+    if (failed) throw failed.reason
+  }
+
+  const valid = validateOutfits(raw, allowed, includeJacket, raw.length)
+  // Prefer combinations that weren't on screen before; only fall back to them if the closet is small.
+  const fresh = valid.filter((o) => !shownKeys.has(comboKey(o.item_ids)))
+  const repeats = valid.filter((o) => shownKeys.has(comboKey(o.item_ids)))
+  const outfits = fresh.concat(repeats).slice(0, target)
   if (!outfits.length) throw new HttpError(502, "Couldn't put together valid outfits. Please try again.")
 
   const payload = {

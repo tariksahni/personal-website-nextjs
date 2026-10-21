@@ -7,7 +7,6 @@ import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Spinner, ErrorBanner, Notice, Sectio
 
 const SECTIONS = [
   { id: 'office', title: 'Office' },
-  { id: 'casual', title: 'Casual' },
   { id: 'special', title: 'Special day' },
 ]
 
@@ -105,7 +104,7 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
     }
   }
 
-  const suggestBoth = () => Promise.all([run('office'), run('casual')])
+  const suggestBoth = () => run('office')
 
   const submitSpecial = (e) => {
     e.preventDefault()
@@ -128,8 +127,8 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
     }
   }
 
-  const hasMain = !!(suggestions.office || suggestions.casual)
-  const mainPending = !!(pending.office || pending.casual)
+  const hasMain = !!suggestions.office
+  const mainPending = !!pending.office
   const prettyDate = new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
     weekday: 'long',
     day: 'numeric',
@@ -204,7 +203,7 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
           </button>
           <button type="button" onClick={suggestBoth} disabled={mainPending} className={`${hasMain ? BTN_SECONDARY : BTN_PRIMARY} tw-w-full`}>
             {mainPending ? <Spinner light={!hasMain} className="tw-w-4 tw-h-4" /> : <span aria-hidden>{hasMain ? '↻' : '✦'}</span>}
-            {mainPending ? 'Styling…' : hasMain ? 'Refresh suggestions' : 'Suggest outfits'}
+            {mainPending ? 'Styling…' : hasMain ? 'Refresh — show new outfits' : 'Suggest office outfits'}
           </button>
           {mainPending && (
             <p className="tw-text-center tw-text-xs tw-text-stone-400">This usually takes 10–20 seconds.</p>
