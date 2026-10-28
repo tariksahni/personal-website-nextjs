@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { resizeImage } from 'Lib/wardrobe/image'
-import { callFn } from 'Lib/wardrobe/api'
-import { uploadImage, insertItem, deleteItem, downloadImage, updateItem } from 'Lib/wardrobe/data'
+import { uploadImage, insertItem, deleteItem } from 'Lib/wardrobe/data'
+import { runJob, mapLimit } from 'Lib/wardrobe/jobs'
 import ItemCard from './ItemCard'
 import ItemEditor from './ItemEditor'
 import { BTN_PRIMARY, BTN_SECONDARY, BTN_BASE, Spinner, ErrorBanner } from './ui'
@@ -18,29 +18,20 @@ const FILTERS = [
 
 const CLOSET_MAX_PX = 1536
 const CLOSET_QUALITY = 0.85
-const MAX_TAG_BASE64 = 4.5 * 1024 * 1024
+const CONCURRENCY = 4
 
-/** Upload one photo: resize → storage → AI tags (optional) → row. Returns { item, tagError }. */
-async function addOne(file, onStep) {
-  onStep('Preparing photo')
-  // Quality first: 1536px / 0.85 (base64 stays well under wardrobe-tag's 5MB limit).
-  let { blob, base64, mediaType } = await resizeImage(file, CLOSET_MAX_PX, CLOSET_QUALITY)
-  // Netlify sync functions accept ~6MB bodies: fall back to the smaller default for huge, noisy photos.
-  if (base64.length > MAX_TAG_BASE64) ({ blob, base64, mediaType } = await resizeImage(file))
-  onStep('Uploading')
+/** Upload one photo: resize → storage → untagged row ("Needs tags" until its tag job finishes). */
+async function addOne(file) {
+  const { blob } = await resizeImage(file, CLOSET_MAX_PX, CLOSET_QUALITY)
   const path = await uploadImage(blob)
-  onStep('Tagging')
-  let tags = null
-  let tagError = null
-  try {
-    const res = await callFn('wardrobe-tag', { imageBase64: base64, mediaType })
-    tags = res.tags
-  } catch (e) {
-    tagError = e.message
-  }
-  onStep('Saving')
-  const item = await insertItem(path, tags)
-  return { item, tagError }
+  return insertItem(path, null)
+}
+
+/** AI-tags a stored item via an async job; the server updates the row (keeping existing colours). */
+async function tagItem(itemId) {
+  const result = await runJob('tag', { itemId })
+  if (!result || !result.item) throw new Error('Tagging returned nothing.')
+  return result.item
 }
 
 export default function ClosetTab({ items, urls, loading, onItemsChange, onStyleItem }) {
@@ -52,31 +43,39 @@ export default function ClosetTab({ items, urls, loading, onItemsChange, onStyle
   const galleryRef = useRef(null)
   const cameraRef = useRef(null)
 
+  const replaceItem = (updated) => onItemsChange((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+
+  // Upload → insert untagged rows → tag jobs, up to 4 photos in flight at once.
   const handleFiles = async (fileList) => {
     const files = Array.from(fileList || [])
     if (!files.length) return
     setErrors([])
+    setDone(null)
     const problems = []
-    for (let i = 0; i < files.length; i += 1) {
-      const file = files[i]
+    let finished = 0
+    setProgress({ done: 0, total: files.length, verb: 'Adding' })
+    await mapLimit(files, CONCURRENCY, async (file, i) => {
       const label = files.length > 1 ? `Photo ${i + 1}` : 'Photo'
-      setProgress({ index: i, total: files.length, step: 'Preparing photo' })
       try {
-        // eslint-disable-next-line no-await-in-loop
-        const { item, tagError } = await addOne(file, (step) =>
-          setProgress({ index: i, total: files.length, step })
-        )
+        const item = await addOne(file)
         onItemsChange((prev) => [item, ...prev])
-        if (tagError) problems.push(`${label}: added, but tagging failed (${tagError}). Tap it to tag manually.`)
+        try {
+          replaceItem(await tagItem(item.id))
+        } catch (e) {
+          problems.push(`${label}: added, but tagging failed (${e.message}). Tap it to tag manually.`)
+        }
       } catch (e) {
         problems.push(`${label}: ${e.message}`)
+      } finally {
+        finished += 1
+        setProgress({ done: finished, total: files.length, verb: 'Adding' })
       }
-    }
+    })
     setProgress(null)
     setErrors(problems)
   }
 
-  // Re-run AI tagging on existing items (e.g. after tagging got more precise). Overwrites tags.
+  // Re-run AI tagging on existing items (e.g. after tagging got more precise). Colours are kept server-side.
   const retagAll = async () => {
     const targets = visible
     if (!targets.length) return
@@ -87,26 +86,18 @@ export default function ClosetTab({ items, urls, loading, onItemsChange, onStyle
     setErrors([])
     setDone(null)
     const problems = []
-    for (let i = 0; i < targets.length; i += 1) {
-      const it = targets[i]
-      setProgress({ index: i, total: targets.length, step: 'Re-tagging', verb: 'Re-tagging' })
+    let finished = 0
+    setProgress({ done: 0, total: targets.length, verb: 'Re-tagging' })
+    await mapLimit(targets, CONCURRENCY, async (it) => {
       try {
-        // eslint-disable-next-line no-await-in-loop
-        const blob = await downloadImage(it.image_path)
-        // eslint-disable-next-line no-await-in-loop
-        const { base64, mediaType } = await resizeImage(blob)
-        // eslint-disable-next-line no-await-in-loop
-        const { tags } = await callFn('wardrobe-tag', { imageBase64: base64, mediaType })
-        // Keep the owner's colours (often fixed by hand); only fall back to AI colours if none are set.
-        const { colors, ...rest } = tags || {}
-        const patch = it.colors && it.colors.length ? rest : { ...rest, colors }
-        // eslint-disable-next-line no-await-in-loop
-        const updated = await updateItem(it.id, patch)
-        onItemsChange((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+        replaceItem(await tagItem(it.id))
       } catch (e) {
         problems.push(`${it.subcategory || 'Item'}: ${e.message}`)
+      } finally {
+        finished += 1
+        setProgress({ done: finished, total: targets.length, verb: 'Re-tagging' })
       }
-    }
+    })
     setProgress(null)
     setErrors(problems)
     setDone({ ok: targets.length - problems.length, failed: problems.length })
@@ -156,15 +147,15 @@ export default function ClosetTab({ items, urls, loading, onItemsChange, onStyle
         <div className="tw-rounded-2xl tw-border tw-border-solid tw-border-stone-200 tw-bg-white tw-p-4" aria-live="polite">
           <div className="tw-flex tw-items-center tw-gap-3">
             <Spinner />
-            <p className="tw-flex-1 tw-text-sm tw-text-stone-700">
-              {progress.total > 1 ? `${progress.verb || 'Adding'} ${progress.index + 1} of ${progress.total}` : progress.step}
-              {progress.total > 1 && !progress.verb ? ` · ${progress.step}` : ''}…
+            <p className="tw-m-0 tw-flex-1 tw-text-sm tw-text-stone-700">
+              {progress.verb} {progress.total > 1 ? `${progress.total} items · ${progress.done} done` : 'item'}…
+              <span className="tw-block tw-text-xs tw-text-stone-400">AI tagging looks closely at each photo (about 30–60s each, 4 at a time).</span>
             </p>
           </div>
           <div className="tw-mt-3 tw-h-1.5 tw-overflow-hidden tw-rounded-full tw-bg-stone-100">
             <div
               className="tw-h-full tw-rounded-full tw-bg-stone-900 tw-transition-all tw-duration-500"
-              style={{ width: `${Math.round(((progress.index + 0.5) / progress.total) * 100)}%` }}
+              style={{ width: `${Math.max(6, Math.round((progress.done / progress.total) * 100))}%` }}
             />
           </div>
         </div>

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { callFn } from 'Lib/wardrobe/api'
+import { runJob } from 'Lib/wardrobe/jobs'
 import ItemCard from './ItemCard'
 import OutfitCard from './OutfitCard'
-import { BTN_BASE, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, CARD, CATEGORY_LABEL, Spinner, ErrorBanner, Notice, SectionTitle } from './ui'
+import { BTN_BASE, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, CARD, CATEGORY_LABEL, Spinner, ErrorBanner, Notice, SectionTitle, StylistWorking } from './ui'
 
 const PICK_FILTERS = [
   { id: 'top', label: 'Tops' },
@@ -113,11 +113,12 @@ export default function BuildAround({ items, urls, itemsById, anchor, setAnchor,
   const pending = !!(anchor && anchor.pending)
 
   const run = async (id, avoid) => {
-    setAnchor((a) => ({ ...(a && a.id === id ? a : { id, payload: null }), pending: true, error: null, start: null }))
+    setAnchor((a) => ({ ...(a && a.id === id ? a : { id, payload: null }), pending: true, since: Date.now(), error: null, start: null }))
     try {
-      const body = { occasion: 'office', date, includeJacket, anchorId: id }
-      if (avoid && avoid.length) body.avoid = avoid.slice(0, MAX_AVOID)
-      const result = await callFn('wardrobe-suggest', body, { timeoutMs: 60000 })
+      const params = { mode: 'anchor', date, includeJacket, anchorId: id }
+      if (avoid && avoid.length) params.avoid = avoid.slice(0, MAX_AVOID)
+      // Runs as an async job (vision stylist, 30–90s); state lives in the page, so it survives tab switches.
+      const result = await runJob('suggest', params)
       setAnchor((a) => (a && a.id === id ? { ...a, payload: result, pending: false, error: null } : a))
     } catch (e) {
       setAnchor((a) => (a && a.id === id ? { ...a, pending: false, error: e.message } : a))
@@ -188,15 +189,14 @@ export default function BuildAround({ items, urls, itemsById, anchor, setAnchor,
         )}
 
         {pending && (
-          <div className="tw-flex tw-items-center tw-justify-center tw-gap-2 tw-py-2 tw-text-sm tw-text-stone-500" aria-live="polite">
-            <Spinner className="tw-w-4 tw-h-4" />
-            Styling around your {name.toLowerCase()}…
-          </div>
+          <StylistWorking since={anchor.since} text={`Your stylist is styling around your ${name.toLowerCase()}…`} />
         )}
 
         {anchor && anchor.error && !pending && (
           <ErrorBanner message={anchor.error} onRetry={item ? () => run(anchor.id) : undefined} />
         )}
+
+        {payload && payload.note && <Notice>{payload.note}</Notice>}
 
         {payload && payload.cooldownRelaxed && (
           <Notice>Not enough fresh tops, so some worn in the last 4 days are included.</Notice>

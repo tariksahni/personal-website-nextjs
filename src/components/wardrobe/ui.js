@@ -1,4 +1,5 @@
 // Shared small UI bits for the wardrobe app.
+import { useEffect, useState } from 'react'
 // Tailwind preflight is OFF and styles/globals.css styles bare buttons/inputs,
 // so every control here sets its own border/background/padding explicitly
 // (including active:/focus: variants that override the global button:active/focus rules).
@@ -106,4 +107,26 @@ export const FORMALITY_LABEL = {
   casual: 'Casual',
   smart_casual: 'Smart casual',
   formal: 'Formal',
+}
+
+/** "Your stylist is looking at your closet… (30–90s)" with a spinner and elapsed seconds since `since` (ms). */
+export function StylistWorking({ since, text = 'Your stylist is looking at your closet…', hint = '30–90s' }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const secs = since ? Math.max(0, Math.round((now - since) / 1000)) : 0
+  return (
+    <div
+      className="tw-flex tw-items-center tw-gap-3 tw-rounded-xl tw-border tw-border-solid tw-border-stone-200 tw-bg-white tw-px-4 tw-py-3"
+      aria-live="polite"
+    >
+      <Spinner className="tw-w-5 tw-h-5" />
+      <p className="tw-m-0 tw-flex-1 tw-text-sm tw-leading-snug tw-text-stone-700">
+        {text} <span className="tw-text-stone-400">({hint})</span>
+      </p>
+      <span className="tw-shrink-0 tw-text-xs tw-tabular-nums tw-text-stone-400">{secs}s</span>
+    </div>
+  )
 }

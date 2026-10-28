@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { CATEGORIES, FORMALITY, SEASONS, updateItem, deleteItem, downloadImage } from 'Lib/wardrobe/data'
-import { callFn } from 'Lib/wardrobe/api'
-import { resizeImage } from 'Lib/wardrobe/image'
+import { CATEGORIES, FORMALITY, SEASONS, updateItem, deleteItem } from 'Lib/wardrobe/data'
+import { runJob } from 'Lib/wardrobe/jobs'
 import {
   BTN_PRIMARY,
   BTN_SECONDARY,
@@ -100,9 +99,8 @@ export default function ItemEditor({ item, url, onClose, onSaved, onDeleted, onS
     setBusy('tag')
     setError(null)
     try {
-      const blob = await downloadImage(item.image_path)
-      const { base64, mediaType } = await resizeImage(blob)
-      const { tags } = await callFn('wardrobe-tag', { imageBase64: base64, mediaType })
+      // apply:false → the server only returns the tags; they go into the form for review, then Save.
+      const { tags } = await runJob('tag', { itemId: item.id, apply: false })
       // Keep existing colours (often fixed by hand); use AI colours only if the item has none.
       const keepColors = item.colors && item.colors.length ? { colors: item.colors } : {}
       setForm(toForm({ ...item, ...tags, ...keepColors }))
@@ -142,7 +140,7 @@ export default function ItemEditor({ item, url, onClose, onSaved, onDeleted, onS
               </p>
               <button type="button" onClick={autoTag} disabled={!!busy} className={`${BTN_SECONDARY} tw-w-full`}>
                 {busy === 'tag' ? <Spinner className="tw-w-4 tw-h-4" /> : <span aria-hidden>✦</span>}
-                {busy === 'tag' ? 'Tagging…' : 'Auto-tag with AI'}
+                {busy === 'tag' ? 'Looking closely… (30–60s)' : 'Auto-tag with AI'}
               </button>
             </div>
           </div>

@@ -58,6 +58,36 @@ function storageClient({ supabaseUrl, anonKey, token, bucket = 'wardrobe' }) {
       }
     },
 
+    /**
+     * Signed (time-limited, publicly fetchable) URLs for several objects, as the user (RLS applies).
+     * POST /storage/v1/object/sign/{bucket} { expiresIn, paths } → [{ path, signedURL, error }].
+     * Returns { [path]: absoluteUrl }; paths that fail are missing. Never throws.
+     */
+    async signUrls(paths, expiresIn = 3600) {
+      const out = {}
+      if (!paths || !paths.length) return out
+      try {
+        const res = await fetch(`${base}/object/sign/${bucket}`, {
+          method: 'POST',
+          headers: { ...auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expiresIn, paths }),
+        })
+        if (!res.ok) {
+          console.error(`[wardrobe] storage sign -> ${res.status}`)
+          return out
+        }
+        const data = await res.json()
+        for (const row of Array.isArray(data) ? data : []) {
+          const rel = row && (row.signedURL || row.signedUrl)
+          if (!rel || row.error || !row.path) continue
+          out[row.path] = /^https?:\/\//.test(rel) ? rel : `${base}${rel.startsWith('/') ? '' : '/'}${rel}`
+        }
+      } catch (e) {
+        console.error('[wardrobe] storage sign failed')
+      }
+      return out
+    },
+
     /** Lists objects in a folder whose name matches `search`. Returns [] on error. */
     async list(prefix, search) {
       try {

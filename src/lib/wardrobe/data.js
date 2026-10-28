@@ -98,11 +98,6 @@ export async function uploadImage(blob) {
   return path
 }
 
-/** Downloads an object (used to re-tag an existing item). */
-export async function downloadImage(path) {
-  return unwrap(await supabase.storage.from(BUCKET).download(path))
-}
-
 const ITEM_FIELDS = ['category', 'subcategory', 'colors', 'pattern', 'formality', 'seasons', 'description']
 
 function pickItemFields(src) {

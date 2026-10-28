@@ -1,15 +1,42 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { callFn, localDate } from 'Lib/wardrobe/api'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { localDate } from 'Lib/wardrobe/api'
 import { getSuggestions, getWearLog, logWear } from 'Lib/wardrobe/data'
+import { startJob, pollJob, rememberJob, forgetJob, recallJob } from 'Lib/wardrobe/jobs'
 import OutfitCard from './OutfitCard'
 import BuildAround from './BuildAround'
 import TryOnSheet from './TryOnSheet'
-import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Spinner, ErrorBanner, Notice, SectionTitle } from './ui'
+import { BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, CARD, INPUT, Spinner, ErrorBanner, Notice, SectionTitle, StylistWorking } from './ui'
 
 const SECTIONS = [
   { id: 'office', title: 'Office' },
   { id: 'special', title: 'Special day' },
 ]
+
+const REQUEST_KEY = 'wardrobe.request'
+const MAX_REQUEST = 500
+const MAX_AVOID = 30
+const RESUMABLE = ['office', 'special', 'request']
+// Dark text on white, set inline so global/iOS autofill styles can't make it invisible.
+const INPUT_STYLE = { color: '#1c1917', WebkitTextFillColor: '#1c1917', backgroundColor: '#fff' }
+
+function loadRequestState(date) {
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(REQUEST_KEY) || 'null')
+    if (saved && saved.date === date) return saved
+  } catch (e) {
+    // storage unavailable
+  }
+  return null
+}
+
+function saveRequestState(state) {
+  try {
+    if (state) window.sessionStorage.setItem(REQUEST_KEY, JSON.stringify(state))
+    else window.sessionStorage.removeItem(REQUEST_KEY)
+  } catch (e) {
+    // storage unavailable
+  }
+}
 
 function sameIds(a, b) {
   if (!a || !b || a.length !== b.length) return false
@@ -22,8 +49,11 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [suggestions, setSuggestions] = useState({}) // occasion -> payload
-  const [pending, setPending] = useState({}) // occasion -> true
-  const [errors, setErrors] = useState({}) // occasion -> message
+  const [pending, setPending] = useState({}) // slot ('office' | 'special' | 'request') -> started-at ms
+  const [errors, setErrors] = useState({}) // slot -> message
+  const [requestText, setRequestText] = useState('')
+  const [requestResult, setRequestResult] = useState(null) // { request, payload }
+  const mounted = useRef(true)
   const [wearLog, setWearLog] = useState(null)
   const [wearing, setWearing] = useState(null) // "occasion:index"
   const [wearError, setWearError] = useState(null)
@@ -90,28 +120,111 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  const run = async (occasion, note) => {
-    setPending((p) => ({ ...p, [occasion]: true }))
-    setErrors((e) => ({ ...e, [occasion]: null }))
-    try {
-      const body = { occasion, date, includeJacket }
-      if (occasion === 'special') body.specialNote = note
-      const payload = await callFn('wardrobe-suggest', body, { timeoutMs: 60000 })
-      setSuggestions((s) => ({ ...s, [occasion]: payload }))
-    } catch (e) {
-      setErrors((x) => ({ ...x, [occasion]: e.message }))
-    } finally {
-      setPending((p) => ({ ...p, [occasion]: false }))
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false // in-flight polls stop; the jobs are resumed on the next mount
     }
+  }, [])
+
+  // Restore this tab session's request text + results for today.
+  useEffect(() => {
+    const saved = loadRequestState(date)
+    if (saved) {
+      setRequestText(saved.text || '')
+      if (saved.payload) setRequestResult({ request: saved.payload.request, payload: saved.payload })
+    }
+  }, [date])
+
+  const onDone = useCallback(
+    (slot, result) => {
+      if (slot === 'request') {
+        setRequestResult({ request: result.request, payload: result })
+        const prev = loadRequestState(date) || {}
+        saveRequestState({ ...prev, date, payload: result })
+      } else {
+        setSuggestions((s) => ({ ...s, [slot]: result }))
+      }
+    },
+    [date]
+  )
+
+  const follow = useCallback(
+    async (slot, jobId, since) => {
+      setPending((p) => ({ ...p, [slot]: since }))
+      setErrors((e) => ({ ...e, [slot]: null }))
+      try {
+        const result = await pollJob(jobId, { isCancelled: () => !mounted.current })
+        if (result === null) return // unmounted: resumed on the next mount
+        forgetJob(slot)
+        if (mounted.current) onDone(slot, result)
+      } catch (e) {
+        forgetJob(slot)
+        if (mounted.current) setErrors((x) => ({ ...x, [slot]: e.message }))
+      } finally {
+        if (mounted.current) setPending((p) => ({ ...p, [slot]: null }))
+      }
+    },
+    [onDone]
+  )
+
+  // Resume jobs that were still running when the tab was switched or the page reloaded.
+  useEffect(() => {
+    RESUMABLE.forEach((slot) => {
+      const saved = recallJob(slot)
+      if (saved && saved.meta && saved.meta.date === date) follow(slot, saved.jobId, saved.meta.since || saved.at)
+    })
+  }, [date, follow])
+
+  const run = async (slot, params) => {
+    const since = Date.now()
+    setPending((p) => ({ ...p, [slot]: since }))
+    setErrors((e) => ({ ...e, [slot]: null }))
+    let jobId
+    try {
+      jobId = await startJob('suggest', { date, includeJacket, ...params })
+    } catch (e) {
+      if (mounted.current) {
+        setErrors((x) => ({ ...x, [slot]: e.message }))
+        setPending((p) => ({ ...p, [slot]: null }))
+      }
+      return
+    }
+    rememberJob(slot, jobId, { date, since })
+    follow(slot, jobId, since)
   }
 
-  const suggestBoth = () => run('office')
+  const suggestBoth = () => run('office', { mode: 'office' })
 
   const submitSpecial = (e) => {
     e.preventDefault()
     const note = specialNote.trim()
     if (!note) return
-    run('special', note.slice(0, 300))
+    run('special', { mode: 'special', specialNote: note.slice(0, 300) })
+  }
+
+  const askStylist = (request, avoid) => {
+    const text = (request || '').trim().slice(0, MAX_REQUEST)
+    if (!text) return
+    const params = { mode: 'request', request: text }
+    if (avoid && avoid.length) params.avoid = avoid.slice(0, MAX_AVOID)
+    run('request', params)
+  }
+  const submitRequest = (e) => {
+    e.preventDefault()
+    saveRequestState({ ...(loadRequestState(date) || {}), date, text: requestText })
+    askStylist(requestText)
+  }
+  const refreshRequest = () => {
+    if (!requestResult) return
+    const avoid = ((requestResult.payload && requestResult.payload.outfits) || []).map((o) => o.item_ids || []).filter((ids) => ids.length)
+    askStylist(requestResult.request, avoid)
+  }
+  const clearRequest = () => {
+    setRequestResult(null)
+    setRequestText('')
+    setErrors((x) => ({ ...x, request: null }))
+    saveRequestState(null)
   }
 
   const wear = async (occasion, outfit, index, key = `${occasion}:${index}`) => {
@@ -130,6 +243,7 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
 
   const hasMain = !!suggestions.office
   const mainPending = !!pending.office
+  const requestPending = !!pending.request
   const prettyDate = new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
     weekday: 'long',
     day: 'numeric',
@@ -184,6 +298,86 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
       )}
 
       {closetReady && (
+        <section className={`${CARD} tw-p-4`}>
+          <form onSubmit={submitRequest} className="tw-space-y-3">
+            <label htmlFor="wd-request" className="tw-block tw-font-serif tw-text-lg tw-text-stone-900">
+              Ask your stylist
+            </label>
+            <textarea
+              id="wd-request"
+              rows={3}
+              value={requestText}
+              maxLength={MAX_REQUEST}
+              onChange={(e) => setRequestText(e.target.value)}
+              placeholder="e.g. something light for a long meeting, no jeans, use my olive overshirt"
+              className={`${INPUT} tw-resize-none`}
+              style={INPUT_STYLE}
+            />
+            <div className="tw-flex tw-items-center tw-gap-3">
+              <button type="submit" disabled={requestPending || !requestText.trim()} className={`${BTN_PRIMARY} tw-flex-1`}>
+                {requestPending ? <Spinner light className="tw-w-4 tw-h-4" /> : <span aria-hidden>✦</span>}
+                {requestPending ? 'Styling…' : 'Suggest 7 outfits'}
+              </button>
+              {requestText.length > MAX_REQUEST - 80 && (
+                <span className="tw-shrink-0 tw-text-xs tw-text-stone-400">{MAX_REQUEST - requestText.length}</span>
+              )}
+            </div>
+          </form>
+        </section>
+      )}
+
+      {(requestPending || requestResult || errors.request) && (
+        <section>
+          <SectionTitle
+            right={
+              requestResult && (
+                <div className="tw-flex tw-gap-1">
+                  <button type="button" onClick={refreshRequest} disabled={requestPending} className={`${BTN_GHOST} tw-min-h-[36px] tw-px-2.5 tw-text-sm`}>
+                    ↻ Refresh
+                  </button>
+                  <button type="button" onClick={clearRequest} disabled={requestPending} className={`${BTN_GHOST} tw-min-h-[36px] tw-px-2.5 tw-text-sm`}>
+                    Clear
+                  </button>
+                </div>
+              )
+            }
+          >
+            For your request
+          </SectionTitle>
+          {requestResult && requestResult.request && (
+            <p className="tw-mb-3 -tw-mt-2 tw-text-sm tw-italic tw-text-stone-500">“{requestResult.request}”</p>
+          )}
+          <div className="tw-space-y-3">
+            {requestPending && <StylistWorking since={pending.request} />}
+            {errors.request && (
+              <ErrorBanner
+                message={errors.request}
+                onRetry={requestPending ? undefined : () => (requestResult ? refreshRequest() : askStylist(requestText))}
+              />
+            )}
+            {requestResult && requestResult.payload && requestResult.payload.note && <Notice>{requestResult.payload.note}</Notice>}
+            <div className={`tw-space-y-3 ${requestPending ? 'tw-opacity-60 tw-transition-opacity' : 'tw-transition-opacity'}`}>
+              {requestResult &&
+                ((requestResult.payload && requestResult.payload.outfits) || []).map((outfit, i) => (
+                  <OutfitCard
+                    key={`request-${(outfit.item_ids || []).join('-')}`}
+                    outfit={outfit}
+                    itemsById={itemsById}
+                    urls={urls}
+                    worn={!!wearLog && sameIds(wearLog.item_ids, (outfit.item_ids || []).filter((x) => itemsById[x]))}
+                    wornOther={!!wearLog}
+                    busy={wearing === `request:${i}`}
+                    disabled={!!wearing}
+                    onWear={() => wear('office', outfit, i, `request:${i}`)}
+                    onTryOn={(itemIds) => setTryOn({ outfit, itemIds })}
+                  />
+                ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {closetReady && (
         <div className="tw-grid tw-grid-cols-1 tw-gap-3">
           <button
             type="button"
@@ -206,9 +400,7 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
             {mainPending ? <Spinner light={!hasMain} className="tw-w-4 tw-h-4" /> : <span aria-hidden>{hasMain ? '↻' : '✦'}</span>}
             {mainPending ? 'Styling…' : hasMain ? 'Refresh — show new outfits' : 'Suggest office outfits'}
           </button>
-          {mainPending && (
-            <p className="tw-text-center tw-text-xs tw-text-stone-400">This usually takes 10–20 seconds.</p>
-          )}
+          {mainPending && <StylistWorking since={pending.office} />}
         </div>
       )}
 
@@ -223,8 +415,8 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
             title={title}
             payload={payload}
             error={errors[id]}
-            pending={pending[id]}
-            onRetry={() => run(id)}
+            pending={!!pending[id]}
+            onRetry={() => run(id, { mode: id })}
             renderOutfit={(outfit, i) => (
               <OutfitCard
                 key={`${id}-${i}`}
@@ -289,12 +481,15 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
               />
               <button
                 type="submit"
-                disabled={pending.special || !specialNote.trim()}
+                disabled={!!pending.special || !specialNote.trim()}
                 className="tw-inline-flex tw-w-full tw-min-h-[44px] tw-items-center tw-justify-center tw-gap-2 tw-m-0 tw-rounded-xl tw-border-0 tw-bg-white active:tw-bg-stone-200 focus:tw-border-0 tw-text-[15px] tw-font-medium tw-text-stone-900 tw-cursor-pointer disabled:tw-opacity-50"
               >
                 {pending.special ? <Spinner className="tw-w-4 tw-h-4" /> : null}
                 {pending.special ? 'Styling…' : suggestions.special ? 'Suggest again' : 'Suggest outfits'}
               </button>
+              {pending.special && (
+                <p className="tw-m-0 tw-text-center tw-text-xs tw-text-stone-300">Your stylist is looking at your closet… (30–90s)</p>
+              )}
             </form>
           )}
         </section>
@@ -306,7 +501,7 @@ export default function TodayTab({ items, urls, itemsLoading, onGoToCloset, onGo
           subtitle={suggestions.special && suggestions.special.specialNote}
           payload={suggestions.special}
           error={errors.special}
-          pending={pending.special}
+          pending={!!pending.special}
           renderOutfit={(outfit, i) => (
             <OutfitCard
               key={`special-${i}`}
